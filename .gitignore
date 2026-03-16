@@ -1,0 +1,40 @@
+@"
+# Backend dependencies
+backend/node_modules/
+backend/package-lock.json
+
+# Frontend dependencies
+frontend/node_modules/
+frontend/package-lock.json
+
+# Environment variables - BOTH
+backend/.env
+backend/.env.local
+backend/.env.production
+frontend/.env
+frontend/.env.local
+frontend/.env.production
+
+# Logs
+backend/logs/
+frontend/logs/
+*.log
+
+# Build outputs
+frontend/dist/
+frontend/build/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Backend scripts (optional to exclude)
+backend/scripts/
+
+# Coverage
+coverage/
+"@ | Out-File -FilePath .gitignore -Encoding utf8
