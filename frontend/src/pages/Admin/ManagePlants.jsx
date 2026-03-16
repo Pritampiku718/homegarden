@@ -9,7 +9,9 @@ const ManagePlants = () => {
   const [filteredPlants, setFilteredPlants] = useState([]);
   const [sections, setSections] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [subCategories, setSubCategories] = useState([]);
   const [filteredCategories, setFilteredCategories] = useState([]);
+  const [filteredSubCategories, setFilteredSubCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(null);
@@ -21,7 +23,9 @@ const ManagePlants = () => {
     description: "",
     section: "",
     category: "",
+    subCategory: "",
     image: "",
+    inStock: true,
   });
   const [editingId, setEditingId] = useState(null);
   const [imageFile, setImageFile] = useState(null);
@@ -31,8 +35,10 @@ const ManagePlants = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterSection, setFilterSection] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
+  const [filterSubCategory, setFilterSubCategory] = useState("all");
   const [filterPriceMin, setFilterPriceMin] = useState("");
   const [filterPriceMax, setFilterPriceMax] = useState("");
+  const [filterInStock, setFilterInStock] = useState(false);
   const [sortBy, setSortBy] = useState("name");
   const [sortOrder, setSortOrder] = useState("asc");
   const [currentPage, setCurrentPage] = useState(1);
@@ -42,19 +48,43 @@ const ManagePlants = () => {
     fetchData();
   }, []);
 
+  // Update categories when section changes
   useEffect(() => {
     if (formData.section) {
-      setFilteredCategories(
-        categories.filter((c) => c.section?._id === formData.section),
+      const filtered = categories.filter(
+        (c) => c.section?._id === formData.section,
       );
-      if (!filteredCategories.some((c) => c._id === formData.category)) {
-        setFormData((prev) => ({ ...prev, category: "" }));
+      setFilteredCategories(filtered);
+
+      // Reset category if current selection not in filtered
+      if (!filtered.some((c) => c._id === formData.category)) {
+        setFormData((prev) => ({ ...prev, category: "", subCategory: "" }));
       }
     } else {
       setFilteredCategories([]);
+      setFormData((prev) => ({ ...prev, category: "", subCategory: "" }));
     }
   }, [formData.section, categories]);
 
+  // Update subcategories when category changes
+  useEffect(() => {
+    if (formData.category) {
+      const filtered = subCategories.filter(
+        (s) => s.category?._id === formData.category,
+      );
+      setFilteredSubCategories(filtered);
+
+      // Reset subCategory if current selection not in filtered
+      if (!filtered.some((s) => s._id === formData.subCategory)) {
+        setFormData((prev) => ({ ...prev, subCategory: "" }));
+      }
+    } else {
+      setFilteredSubCategories([]);
+      setFormData((prev) => ({ ...prev, subCategory: "" }));
+    }
+  }, [formData.category, subCategories]);
+
+  // Filter and sort plants
   useEffect(() => {
     let result = [...plants];
 
@@ -66,6 +96,13 @@ const ManagePlants = () => {
     // Filter by category
     if (filterCategory !== "all") {
       result = result.filter((plant) => plant.category?._id === filterCategory);
+    }
+
+    // Filter by subCategory
+    if (filterSubCategory !== "all") {
+      result = result.filter(
+        (plant) => plant.subCategory?._id === filterSubCategory,
+      );
     }
 
     // Filter by price range
@@ -80,13 +117,18 @@ const ManagePlants = () => {
       );
     }
 
+    // Filter by stock
+    if (filterInStock) {
+      result = result.filter((plant) => plant.inStock === true);
+    }
+
     // Apply search
     if (searchTerm) {
+      const term = searchTerm.toLowerCase();
       result = result.filter(
         (plant) =>
-          plant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (plant.description &&
-            plant.description.toLowerCase().includes(searchTerm.toLowerCase())),
+          plant.name.toLowerCase().includes(term) ||
+          (plant.description && plant.description.toLowerCase().includes(term)),
       );
     }
 
@@ -105,6 +147,10 @@ const ManagePlants = () => {
         comparison = (a.category?.name || "").localeCompare(
           b.category?.name || "",
         );
+      } else if (sortBy === "subCategory") {
+        comparison = (a.subCategory?.name || "").localeCompare(
+          b.subCategory?.name || "",
+        );
       } else if (sortBy === "createdAt") {
         comparison = new Date(a.createdAt) - new Date(b.createdAt);
       }
@@ -118,8 +164,10 @@ const ManagePlants = () => {
     searchTerm,
     filterSection,
     filterCategory,
+    filterSubCategory,
     filterPriceMin,
     filterPriceMax,
+    filterInStock,
     sortBy,
     sortOrder,
   ]);
@@ -127,13 +175,16 @@ const ManagePlants = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [sectionsRes, categoriesRes, plantsRes] = await Promise.all([
-        api.get("/sections"),
-        api.get("/categories"),
-        api.get("/plants"),
-      ]);
+      const [sectionsRes, categoriesRes, subCategoriesRes, plantsRes] =
+        await Promise.all([
+          api.get("/sections"),
+          api.get("/categories"),
+          api.get("/subcategories"),
+          api.get("/plants"),
+        ]);
       setSections(sectionsRes.data.data || []);
       setCategories(categoriesRes.data.data || []);
+      setSubCategories(subCategoriesRes.data.data || []);
       setPlants(plantsRes.data.data || []);
     } catch (error) {
       toast.error("Failed to load data");
@@ -144,8 +195,11 @@ const ManagePlants = () => {
   };
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   };
 
   const handleImageChange = (e) => {
@@ -195,7 +249,9 @@ const ManagePlants = () => {
         description: formData.description,
         section: formData.section,
         category: formData.category,
+        subCategory: formData.subCategory || null,
         image: imageUrl,
+        inStock: formData.inStock,
       };
 
       if (editingId) {
@@ -224,7 +280,9 @@ const ManagePlants = () => {
       description: plant.description,
       section: plant.section?._id || "",
       category: plant.category?._id || "",
+      subCategory: plant.subCategory?._id || "",
       image: plant.image || "",
+      inStock: plant.inStock !== false,
     });
     setImagePreview(plant.image || "");
     setImageFile(null);
@@ -257,7 +315,9 @@ const ManagePlants = () => {
       description: "",
       section: "",
       category: "",
+      subCategory: "",
       image: "",
+      inStock: true,
     });
     setImageFile(null);
     setImagePreview("");
@@ -271,9 +331,13 @@ const ManagePlants = () => {
   const clearAllFilters = () => {
     setFilterSection("all");
     setFilterCategory("all");
+    setFilterSubCategory("all");
     setFilterPriceMin("");
     setFilterPriceMax("");
+    setFilterInStock(false);
     setSearchTerm("");
+    setSortBy("name");
+    setSortOrder("asc");
   };
 
   // Pagination calculations
@@ -388,6 +452,39 @@ const ManagePlants = () => {
                         </option>
                       ))}
                     </select>
+                    {!formData.section && (
+                      <p className="text-xs text-amber-600 mt-1">
+                        Please select a section first
+                      </p>
+                    )}
+                  </div>
+
+                  {/* SubCategory */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Sub-Category (Optional)
+                    </label>
+                    <select
+                      name="subCategory"
+                      value={formData.subCategory}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
+                               focus:ring-2 focus:ring-green-500 focus:border-transparent
+                               bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      disabled={!formData.category}
+                    >
+                      <option value="">None (No sub-category)</option>
+                      {filteredSubCategories.map((subCat) => (
+                        <option key={subCat._id} value={subCat._id}>
+                          {subCat.name}
+                        </option>
+                      ))}
+                    </select>
+                    {!formData.category && formData.section && (
+                      <p className="text-xs text-amber-600 mt-1">
+                        Please select a category first
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -407,6 +504,24 @@ const ManagePlants = () => {
                                bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
                       required
                     />
+                  </div>
+
+                  {/* In Stock Checkbox */}
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="checkbox"
+                      name="inStock"
+                      id="inStock"
+                      checked={formData.inStock}
+                      onChange={handleInputChange}
+                      className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                    />
+                    <label
+                      htmlFor="inStock"
+                      className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      In Stock (Available for purchase)
+                    </label>
                   </div>
 
                   {/* Image Upload */}
@@ -495,7 +610,7 @@ const ManagePlants = () => {
           {/* Advanced Search and Filter Bar */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden mb-6">
             <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                 {/* Search */}
                 <div className="lg:col-span-2 xl:col-span-1">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -537,6 +652,7 @@ const ManagePlants = () => {
                     onChange={(e) => {
                       setFilterSection(e.target.value);
                       setFilterCategory("all");
+                      setFilterSubCategory("all");
                     }}
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
                              focus:ring-2 focus:ring-green-500 focus:border-transparent
@@ -558,7 +674,10 @@ const ManagePlants = () => {
                   </label>
                   <select
                     value={filterCategory}
-                    onChange={(e) => setFilterCategory(e.target.value)}
+                    onChange={(e) => {
+                      setFilterCategory(e.target.value);
+                      setFilterSubCategory("all");
+                    }}
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
                              focus:ring-2 focus:ring-green-500 focus:border-transparent
                              bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -571,6 +690,31 @@ const ManagePlants = () => {
                         .map((category) => (
                           <option key={category._id} value={category._id}>
                             {category.name}
+                          </option>
+                        ))}
+                  </select>
+                </div>
+
+                {/* Filter by SubCategory */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Sub-Category
+                  </label>
+                  <select
+                    value={filterSubCategory}
+                    onChange={(e) => setFilterSubCategory(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
+                             focus:ring-2 focus:ring-green-500 focus:border-transparent
+                             bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    disabled={filterCategory === "all"}
+                  >
+                    <option value="all">All Sub-Categories</option>
+                    {filterCategory !== "all" &&
+                      subCategories
+                        .filter((sub) => sub.category?._id === filterCategory)
+                        .map((subCat) => (
+                          <option key={subCat._id} value={subCat._id}>
+                            {subCat.name}
                           </option>
                         ))}
                   </select>
@@ -605,6 +749,23 @@ const ManagePlants = () => {
                   </div>
                 </div>
 
+                {/* In Stock Filter */}
+                <div className="flex items-center space-x-3 pt-8">
+                  <input
+                    type="checkbox"
+                    id="filterInStock"
+                    checked={filterInStock}
+                    onChange={(e) => setFilterInStock(e.target.checked)}
+                    className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                  />
+                  <label
+                    htmlFor="filterInStock"
+                    className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    In Stock Only
+                  </label>
+                </div>
+
                 {/* Sort By */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -621,6 +782,7 @@ const ManagePlants = () => {
                     <option value="price">Price</option>
                     <option value="section">Section</option>
                     <option value="category">Category</option>
+                    <option value="subCategory">Sub-Category</option>
                     <option value="createdAt">Date Added</option>
                   </select>
                 </div>
@@ -653,8 +815,10 @@ const ManagePlants = () => {
 
                 {(filterSection !== "all" ||
                   filterCategory !== "all" ||
+                  filterSubCategory !== "all" ||
                   filterPriceMin ||
-                  filterPriceMax) && (
+                  filterPriceMax ||
+                  filterInStock) && (
                   <button
                     onClick={clearAllFilters}
                     className="text-sm text-red-600 hover:text-red-700 font-medium"
@@ -670,7 +834,7 @@ const ManagePlants = () => {
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Plants List
+                Plants List ({filteredPlants.length})
               </h2>
             </div>
 
@@ -706,7 +870,7 @@ const ManagePlants = () => {
                         />
 
                         <div className="flex-1">
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center space-x-2 flex-wrap gap-2">
                             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                               {plant.name}
                             </h3>
@@ -716,6 +880,16 @@ const ManagePlants = () => {
                             <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs rounded-full">
                               {plant.category?.name}
                             </span>
+                            {plant.subCategory && (
+                              <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-xs rounded-full">
+                                {plant.subCategory.name}
+                              </span>
+                            )}
+                            {!plant.inStock && (
+                              <span className="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-xs rounded-full">
+                                Out of Stock
+                              </span>
+                            )}
                           </div>
                           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
                             {plant.description}

@@ -21,6 +21,7 @@ const CategoryPage = () => {
   const { slug } = useParams();
   const [section, setSection] = useState(null);
   const [categories, setCategories] = useState([]);
+  const [subCategories, setSubCategories] = useState([]);
   const [allPlants, setAllPlants] = useState([]);
   const [filteredPlants, setFilteredPlants] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,6 +29,7 @@ const CategoryPage = () => {
 
   // Filter states
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedSubCategory, setSelectedSubCategory] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [priceRange, setPriceRange] = useState({ min: "", max: "" });
   const [sortBy, setSortBy] = useState("name");
@@ -36,7 +38,6 @@ const CategoryPage = () => {
 
   // UI states
   const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [activeFilterCount, setActiveFilterCount] = useState(0);
 
   // Pagination states
@@ -54,6 +55,7 @@ const CategoryPage = () => {
   }, [
     allPlants,
     selectedCategory,
+    selectedSubCategory,
     searchTerm,
     priceRange,
     sortBy,
@@ -65,11 +67,18 @@ const CategoryPage = () => {
     // Calculate active filter count
     let count = 0;
     if (selectedCategory !== "all") count++;
+    if (selectedSubCategory !== "all") count++;
     if (searchTerm) count++;
     if (priceRange.min || priceRange.max) count++;
     if (showInStockOnly) count++;
     setActiveFilterCount(count);
-  }, [selectedCategory, searchTerm, priceRange, showInStockOnly]);
+  }, [
+    selectedCategory,
+    selectedSubCategory,
+    searchTerm,
+    priceRange,
+    showInStockOnly,
+  ]);
 
   const fetchData = async () => {
     try {
@@ -89,6 +98,13 @@ const CategoryPage = () => {
         `/categories/section/${sectionData._id}`,
       );
       setCategories(categoriesRes.data.data || []);
+
+      // Get subcategories for this section
+      const subCategoriesRes = await api.get(`/subcategories`);
+      const filteredSubs = (subCategoriesRes.data.data || []).filter(
+        (sub) => sub.section?._id === sectionData._id,
+      );
+      setSubCategories(filteredSubs);
 
       // Get plants for this section
       const plantsRes = await api.get(`/plants?section=${sectionData._id}`);
@@ -112,6 +128,15 @@ const CategoryPage = () => {
         (plant) =>
           plant.category?._id === selectedCategory ||
           plant.category === selectedCategory,
+      );
+    }
+
+    // Filter by subCategory
+    if (selectedSubCategory !== "all") {
+      result = result.filter(
+        (plant) =>
+          plant.subCategory?._id === selectedSubCategory ||
+          plant.subCategory === selectedSubCategory,
       );
     }
 
@@ -149,8 +174,14 @@ const CategoryPage = () => {
         comparison = a.name.localeCompare(b.name);
       } else if (sortBy === "price") {
         comparison = a.price - b.price;
-      } else if (sortBy === "popular") {
-        comparison = (b.rating || 0) - (a.rating || 0);
+      } else if (sortBy === "category") {
+        comparison = (a.category?.name || "").localeCompare(
+          b.category?.name || "",
+        );
+      } else if (sortBy === "subCategory") {
+        comparison = (a.subCategory?.name || "").localeCompare(
+          b.subCategory?.name || "",
+        );
       } else if (sortBy === "newest") {
         comparison = new Date(b.createdAt) - new Date(a.createdAt);
       }
@@ -163,13 +194,13 @@ const CategoryPage = () => {
 
   const clearFilters = () => {
     setSelectedCategory("all");
+    setSelectedSubCategory("all");
     setSearchTerm("");
     setPriceRange({ min: "", max: "" });
     setSortBy("name");
     setSortOrder("asc");
     setShowInStockOnly(false);
     setShowMobileFilters(false);
-    setShowMobileSearch(false);
   };
 
   const handlePriceChange = (e) => {
@@ -184,6 +215,42 @@ const CategoryPage = () => {
   const totalPages = Math.ceil(filteredPlants.length / itemsPerPage);
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+  // Get filtered subcategories based on selected category
+  const getFilteredSubCategories = () => {
+    if (selectedCategory === "all") {
+      return subCategories;
+    }
+    return subCategories.filter(
+      (sub) => sub.category?._id === selectedCategory,
+    );
+  };
+
+  const filteredSubs = getFilteredSubCategories();
+
+  // Calculate category counts
+  const categoryCounts = categories.reduce((acc, cat) => {
+    acc[cat._id] = allPlants.filter(
+      (p) => p.category?._id === cat._id || p.category === cat._id,
+    ).length;
+    return acc;
+  }, {});
+
+  // Calculate subcategory counts
+  const subCategoryCounts = subCategories.reduce((acc, sub) => {
+    acc[sub._id] = allPlants.filter(
+      (p) => p.subCategory?._id === sub._id || p.subCategory === sub._id,
+    ).length;
+    return acc;
+  }, {});
+
+  const hasActiveFilters =
+    selectedCategory !== "all" ||
+    selectedSubCategory !== "all" ||
+    searchTerm ||
+    priceRange.min ||
+    priceRange.max ||
+    showInStockOnly;
 
   if (loading) return <LoadingSpinner fullPage />;
 
@@ -211,21 +278,6 @@ const CategoryPage = () => {
         </Link>
       </div>
     );
-
-  // Calculate category counts
-  const categoryCounts = categories.reduce((acc, cat) => {
-    acc[cat._id] = allPlants.filter(
-      (p) => p.category?._id === cat._id || p.category === cat._id,
-    ).length;
-    return acc;
-  }, {});
-
-  const hasActiveFilters =
-    selectedCategory !== "all" ||
-    searchTerm ||
-    priceRange.min ||
-    priceRange.max ||
-    showInStockOnly;
 
   return (
     <>
@@ -269,6 +321,9 @@ const CategoryPage = () => {
                 📁 {categories.length} Categories
               </div>
               <div className="bg-white/20 backdrop-blur-md px-3 md:px-4 py-1.5 md:py-2 rounded-full text-white text-xs md:text-sm font-medium border border-white/30">
+                📑 {subCategories.length} Sub-Categories
+              </div>
+              <div className="bg-white/20 backdrop-blur-md px-3 md:px-4 py-1.5 md:py-2 rounded-full text-white text-xs md:text-sm font-medium border border-white/30">
                 🌱 {allPlants.length} Plants
               </div>
             </div>
@@ -279,7 +334,7 @@ const CategoryPage = () => {
       {/* Mobile Filter Bar - Sticky at top */}
       <div className="lg:hidden sticky top-16 z-40 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
         <div className="container mx-auto px-4 py-2">
-          {/* Row 1: Filter Button and Category Dropdown */}
+          {/* Row 1: Filter Button and Quick Filters */}
           <div className="flex items-center gap-2 mb-2">
             {/* Filter Button */}
             <button
@@ -307,10 +362,13 @@ const CategoryPage = () => {
               )}
             </button>
 
-            {/* Category Dropdown */}
+            {/* Category Quick Select */}
             <select
               value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
+              onChange={(e) => {
+                setSelectedCategory(e.target.value);
+                setSelectedSubCategory("all");
+              }}
               className="flex-1 px-3 py-2.5 bg-gray-100 dark:bg-gray-800 rounded-xl text-gray-700 dark:text-gray-300 text-sm font-medium border-0 focus:ring-2 focus:ring-green-500"
             >
               <option value="all">All Categories ({allPlants.length})</option>
@@ -322,7 +380,25 @@ const CategoryPage = () => {
             </select>
           </div>
 
-          {/* Row 2: Search Bar */}
+          {/* Row 2: SubCategory Quick Select (if categories selected) */}
+          {selectedCategory !== "all" && filteredSubs.length > 0 && (
+            <div className="mb-2">
+              <select
+                value={selectedSubCategory}
+                onChange={(e) => setSelectedSubCategory(e.target.value)}
+                className="w-full px-3 py-2.5 bg-gray-100 dark:bg-gray-800 rounded-xl text-gray-700 dark:text-gray-300 text-sm font-medium border-0 focus:ring-2 focus:ring-green-500"
+              >
+                <option value="all">All Sub-Categories</option>
+                {filteredSubs.map((sub) => (
+                  <option key={sub._id} value={sub._id}>
+                    {sub.name} ({subCategoryCounts[sub._id] || 0})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Row 3: Search Bar */}
           <div className="relative">
             <input
               type="text"
@@ -397,6 +473,51 @@ const CategoryPage = () => {
             </div>
 
             <div className="p-4 space-y-6">
+              {/* Categories Section */}
+              {categories.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Category
+                  </label>
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => {
+                      setSelectedCategory(e.target.value);
+                      setSelectedSubCategory("all");
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg"
+                  >
+                    <option value="all">All Categories</option>
+                    {categories.map((cat) => (
+                      <option key={cat._id} value={cat._id}>
+                        {cat.name} ({categoryCounts[cat._id] || 0})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* SubCategories Section */}
+              {selectedCategory !== "all" && filteredSubs.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Sub-Category
+                  </label>
+                  <select
+                    value={selectedSubCategory}
+                    onChange={(e) => setSelectedSubCategory(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg"
+                  >
+                    <option value="all">All Sub-Categories</option>
+                    {filteredSubs.map((sub) => (
+                      <option key={sub._id} value={sub._id}>
+                        {sub.name} ({subCategoryCounts[sub._id] || 0})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {/* Price Range */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -455,6 +576,8 @@ const CategoryPage = () => {
                 >
                   <option value="name">Name</option>
                   <option value="price">Price</option>
+                  <option value="category">Category</option>
+                  <option value="subCategory">Sub-Category</option>
                   <option value="newest">Newest</option>
                 </select>
                 <div className="flex gap-2">
@@ -531,28 +654,116 @@ const CategoryPage = () => {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                     Categories
                   </label>
-                  <div className="space-y-2">
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
                     <button
-                      onClick={() => setSelectedCategory("all")}
-                      className={`w-full text-left px-3 py-2 rounded-lg ${
+                      onClick={() => {
+                        setSelectedCategory("all");
+                        setSelectedSubCategory("all");
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-lg transition ${
                         selectedCategory === "all"
                           ? "bg-green-600 text-white"
-                          : "hover:bg-gray-100"
+                          : "hover:bg-gray-100 dark:hover:bg-gray-700"
                       }`}
                     >
-                      All Categories ({allPlants.length})
+                      <span className="flex justify-between">
+                        <span>All Categories</span>
+                        <span
+                          className={
+                            selectedCategory === "all"
+                              ? "text-white"
+                              : "text-gray-500"
+                          }
+                        >
+                          {allPlants.length}
+                        </span>
+                      </span>
                     </button>
                     {categories.map((cat) => (
                       <button
                         key={cat._id}
-                        onClick={() => setSelectedCategory(cat._id)}
-                        className={`w-full text-left px-3 py-2 rounded-lg ${
+                        onClick={() => {
+                          setSelectedCategory(cat._id);
+                          setSelectedSubCategory("all");
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded-lg transition ${
                           selectedCategory === cat._id
                             ? "bg-green-600 text-white"
-                            : "hover:bg-gray-100"
+                            : "hover:bg-gray-100 dark:hover:bg-gray-700"
                         }`}
                       >
-                        {cat.name} ({categoryCounts[cat._id] || 0})
+                        <span className="flex justify-between">
+                          <span>{cat.name}</span>
+                          <span
+                            className={
+                              selectedCategory === cat._id
+                                ? "text-white"
+                                : "text-gray-500"
+                            }
+                          >
+                            {categoryCounts[cat._id] || 0}
+                          </span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* SubCategories */}
+              {selectedCategory !== "all" && filteredSubs.length > 0 && (
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Sub-Categories
+                  </label>
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
+                    <button
+                      onClick={() => setSelectedSubCategory("all")}
+                      className={`w-full text-left px-3 py-2 rounded-lg transition ${
+                        selectedSubCategory === "all"
+                          ? "bg-green-600 text-white"
+                          : "hover:bg-gray-100 dark:hover:bg-gray-700"
+                      }`}
+                    >
+                      <span className="flex justify-between">
+                        <span>All Sub-Categories</span>
+                        <span
+                          className={
+                            selectedSubCategory === "all"
+                              ? "text-white"
+                              : "text-gray-500"
+                          }
+                        >
+                          {
+                            allPlants.filter(
+                              (p) => p.category?._id === selectedCategory,
+                            ).length
+                          }
+                        </span>
+                      </span>
+                    </button>
+                    {filteredSubs.map((sub) => (
+                      <button
+                        key={sub._id}
+                        onClick={() => setSelectedSubCategory(sub._id)}
+                        className={`w-full text-left px-3 py-2 rounded-lg transition ${
+                          selectedSubCategory === sub._id
+                            ? "bg-green-600 text-white"
+                            : "hover:bg-gray-100 dark:hover:bg-gray-700"
+                        }`}
+                      >
+                        <span className="flex justify-between">
+                          <span>{sub.name}</span>
+                          <span
+                            className={
+                              selectedSubCategory === sub._id
+                                ? "text-white"
+                                : "text-gray-500"
+                            }
+                          >
+                            {subCategoryCounts[sub._id] || 0}
+                          </span>
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -617,6 +828,8 @@ const CategoryPage = () => {
                 >
                   <option value="name">Name</option>
                   <option value="price">Price</option>
+                  <option value="category">Category</option>
+                  <option value="subCategory">Sub-Category</option>
                   <option value="newest">Newest</option>
                 </select>
                 <div className="flex gap-2">
@@ -625,7 +838,7 @@ const CategoryPage = () => {
                     className={`flex-1 px-3 py-2 rounded-lg border ${
                       sortOrder === "asc"
                         ? "bg-green-600 text-white border-green-600"
-                        : "border-gray-300"
+                        : "border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                     }`}
                   >
                     ↑ Asc
@@ -635,7 +848,7 @@ const CategoryPage = () => {
                     className={`flex-1 px-3 py-2 rounded-lg border ${
                       sortOrder === "desc"
                         ? "bg-green-600 text-white border-green-600"
-                        : "border-gray-300"
+                        : "border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                     }`}
                   >
                     ↓ Desc
@@ -658,28 +871,132 @@ const CategoryPage = () => {
           {/* Desktop Main Content */}
           <div className="w-3/4">
             {/* Results Header */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-4 mb-6">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-4 mb-6 border border-gray-100 dark:border-gray-700">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+                <div>
                   <span className="text-2xl font-bold text-gray-900 dark:text-white">
                     {filteredPlants.length}
                   </span>
-                  <span className="text-gray-600 dark:text-gray-400">
+                  <span className="ml-2 text-gray-600 dark:text-gray-400">
                     {filteredPlants.length === 1 ? "Plant" : "Plants"}
                   </span>
+                  {selectedCategory !== "all" && (
+                    <span className="ml-4 text-sm text-gray-500">
+                      in{" "}
+                      <span className="font-medium">
+                        {
+                          categories.find((c) => c._id === selectedCategory)
+                            ?.name
+                        }
+                      </span>
+                    </span>
+                  )}
+                  {selectedSubCategory !== "all" && (
+                    <span className="ml-2 text-sm text-gray-500">
+                      /{" "}
+                      <span className="font-medium">
+                        {
+                          subCategories.find(
+                            (s) => s._id === selectedSubCategory,
+                          )?.name
+                        }
+                      </span>
+                    </span>
+                  )}
                 </div>
                 <div className="text-sm text-gray-500 dark:text-gray-400">
                   Page {currentPage} of {totalPages}
                 </div>
               </div>
+
+              {/* Active Filter Tags */}
+              {hasActiveFilters && (
+                <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  {selectedCategory !== "all" && (
+                    <span className="inline-flex items-center px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm rounded-full">
+                      Category:{" "}
+                      {categories.find((c) => c._id === selectedCategory)?.name}
+                      <button
+                        onClick={() => {
+                          setSelectedCategory("all");
+                          setSelectedSubCategory("all");
+                        }}
+                        className="ml-2 text-green-700 dark:text-green-400 hover:text-green-900"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                  {selectedSubCategory !== "all" && (
+                    <span className="inline-flex items-center px-3 py-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-sm rounded-full">
+                      Sub:{" "}
+                      {
+                        subCategories.find((s) => s._id === selectedSubCategory)
+                          ?.name
+                      }
+                      <button
+                        onClick={() => setSelectedSubCategory("all")}
+                        className="ml-2 text-purple-700 dark:text-purple-400 hover:text-purple-900"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                  {searchTerm && (
+                    <span className="inline-flex items-center px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-sm rounded-full">
+                      "{searchTerm}"
+                      <button
+                        onClick={() => setSearchTerm("")}
+                        className="ml-2 text-blue-700 dark:text-blue-400 hover:text-blue-900"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                  {(priceRange.min || priceRange.max) && (
+                    <span className="inline-flex items-center px-3 py-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-sm rounded-full">
+                      ₹{priceRange.min || "0"} - ₹{priceRange.max || "∞"}
+                      <button
+                        onClick={() => setPriceRange({ min: "", max: "" })}
+                        className="ml-2 text-amber-700 dark:text-amber-400 hover:text-amber-900"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                  {showInStockOnly && (
+                    <span className="inline-flex items-center px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm rounded-full">
+                      In Stock Only
+                      <button
+                        onClick={() => setShowInStockOnly(false)}
+                        className="ml-2 text-green-700 dark:text-green-400 hover:text-green-900"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Plants Grid */}
             {currentItems.length === 0 ? (
-              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-16 text-center">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-16 text-center border border-gray-100 dark:border-gray-700">
+                <div className="text-8xl mb-6 opacity-30">🌱</div>
+                <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
+                  No Plants Found
+                </h3>
                 <p className="text-gray-600 dark:text-gray-400">
-                  No plants found
+                  Try adjusting your filters or search term
                 </p>
+                {hasActiveFilters && (
+                  <button
+                    onClick={clearFilters}
+                    className="mt-6 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-xl transition"
+                  >
+                    Clear All Filters
+                  </button>
+                )}
               </div>
             ) : (
               <>
@@ -691,24 +1008,67 @@ const CategoryPage = () => {
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                  <div className="mt-8 flex justify-center gap-2">
-                    <button
-                      onClick={() => paginate(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className="px-4 py-2 border rounded-lg disabled:opacity-50"
-                    >
-                      Previous
-                    </button>
-                    <span className="px-4 py-2">
-                      Page {currentPage} of {totalPages}
-                    </span>
-                    <button
-                      onClick={() => paginate(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                      className="px-4 py-2 border rounded-lg disabled:opacity-50"
-                    >
-                      Next
-                    </button>
+                  <div className="mt-8 flex items-center justify-between">
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      Showing {indexOfFirstItem + 1} -{" "}
+                      {Math.min(indexOfLastItem, filteredPlants.length)} of{" "}
+                      {filteredPlants.length}
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => paginate(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl 
+                                 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 
+                                 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                      >
+                        Previous
+                      </button>
+                      <div className="flex gap-1">
+                        {[...Array(totalPages)].map((_, i) => {
+                          const pageNum = i + 1;
+                          if (
+                            pageNum === 1 ||
+                            pageNum === totalPages ||
+                            (pageNum >= currentPage - 1 &&
+                              pageNum <= currentPage + 1)
+                          ) {
+                            return (
+                              <button
+                                key={i}
+                                onClick={() => paginate(pageNum)}
+                                className={`w-10 h-10 rounded-xl transition ${
+                                  currentPage === pageNum
+                                    ? "bg-green-600 text-white"
+                                    : "border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                }`}
+                              >
+                                {pageNum}
+                              </button>
+                            );
+                          } else if (pageNum === currentPage - 2) {
+                            return (
+                              <span
+                                key={i}
+                                className="w-10 h-10 flex items-center justify-center"
+                              >
+                                ...
+                              </span>
+                            );
+                          }
+                          return null;
+                        })}
+                      </div>
+                      <button
+                        onClick={() => paginate(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl 
+                                 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 
+                                 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                      >
+                        Next
+                      </button>
+                    </div>
                   </div>
                 )}
               </>
@@ -721,11 +1081,11 @@ const CategoryPage = () => {
       <div className="lg:hidden container mx-auto px-4 py-4">
         {/* Results Count */}
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
+          <div>
             <span className="text-xl font-bold text-gray-900 dark:text-white">
               {filteredPlants.length}
             </span>
-            <span className="text-gray-600 dark:text-gray-400">
+            <span className="ml-2 text-gray-600 dark:text-gray-400">
               {filteredPlants.length === 1 ? "Plant" : "Plants"}
             </span>
           </div>
@@ -739,14 +1099,35 @@ const CategoryPage = () => {
           )}
         </div>
 
+        {/* Active Filter Summary */}
+        {hasActiveFilters && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {selectedCategory !== "all" && (
+              <span className="inline-flex items-center px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full">
+                {categories.find((c) => c._id === selectedCategory)?.name}
+              </span>
+            )}
+            {selectedSubCategory !== "all" && (
+              <span className="inline-flex items-center px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-xs rounded-full">
+                {subCategories.find((s) => s._id === selectedSubCategory)?.name}
+              </span>
+            )}
+            {searchTerm && (
+              <span className="inline-flex items-center px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs rounded-full">
+                "{searchTerm}"
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Plants Grid */}
         {currentItems.length === 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-12 text-center">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-8 text-center">
             <p className="text-gray-600 dark:text-gray-400">No plants found</p>
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               {currentItems.map((plant) => (
                 <PlantCard key={plant._id} plant={plant} />
               ))}
@@ -758,7 +1139,7 @@ const CategoryPage = () => {
                 <button
                   onClick={() => paginate(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className="px-4 py-2 border rounded-lg text-sm disabled:opacity-50"
+                  className="px-3 py-2 border rounded-lg text-sm disabled:opacity-50"
                 >
                   Previous
                 </button>
@@ -768,7 +1149,7 @@ const CategoryPage = () => {
                 <button
                   onClick={() => paginate(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  className="px-4 py-2 border rounded-lg text-sm disabled:opacity-50"
+                  className="px-3 py-2 border rounded-lg text-sm disabled:opacity-50"
                 >
                   Next
                 </button>
