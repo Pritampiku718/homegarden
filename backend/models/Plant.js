@@ -39,13 +39,18 @@ const plantSchema = new mongoose.Schema(
       ref: "Category",
       required: [true, "Category is required"],
     },
+    subCategory: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SubCategory",
+      default: null,
+    },
   },
   {
     timestamps: true,
   },
 );
 
-plantSchema.index({ section: 1, category: 1 });
+plantSchema.index({ section: 1, category: 1, subCategory: 1 });
 plantSchema.index({ slug: 1 }, { unique: true });
 
 export default mongoose.model("Plant", plantSchema);

@@ -1,50 +1,47 @@
-import Plant from '../models/Plant.js';
-import Category from '../models/Category.js';
-import Section from '../models/Section.js';
-import slugify from 'slugify';
-import mongoose from 'mongoose';
+import Plant from "../models/Plant.js";
+import Category from "../models/Category.js";
+import Section from "../models/Section.js";
+import SubCategory from "../models/SubCategory.js";
+import slugify from "slugify";
+import mongoose from "mongoose";
 
 // @desc    Get all plants with optional filtering
 // @route   GET /api/plants
 // @access  Public
 export const getPlants = async (req, res) => {
   try {
-    const { category, section, page = 1, limit = 20 } = req.query;
-    
+    const { category, section, subCategory, page = 1, limit = 20 } = req.query;
+
     // Build query
     const query = {};
-    
-    // Handle category filter - it could be category ID or slug
+
+    // Handle category filter
     if (category) {
-      // Check if category is a valid ObjectId
       const isValidObjectId = mongoose.Types.ObjectId.isValid(category);
-      
+
       if (isValidObjectId) {
-        // It's an ID
         query.category = category;
       } else {
-        // It's a slug - find the category first
         const categoryDoc = await Category.findOne({ slug: category });
         if (categoryDoc) {
           query.category = categoryDoc._id;
         } else {
-          // No category found with this slug, return empty array
           return res.json({
             success: true,
             count: 0,
             total: 0,
             page: parseInt(page),
             pages: 0,
-            data: []
+            data: [],
           });
         }
       }
     }
-    
+
     // Handle section filter
     if (section) {
       const isValidObjectId = mongoose.Types.ObjectId.isValid(section);
-      
+
       if (isValidObjectId) {
         query.section = section;
       } else {
@@ -54,29 +51,54 @@ export const getPlants = async (req, res) => {
         }
       }
     }
-    
+
+    // Handle subCategory filter
+    if (subCategory) {
+      const isValidObjectId = mongoose.Types.ObjectId.isValid(subCategory);
+
+      if (isValidObjectId) {
+        query.subCategory = subCategory;
+      } else {
+        const subCategoryDoc = await SubCategory.findOne({ slug: subCategory });
+        if (subCategoryDoc) {
+          query.subCategory = subCategoryDoc._id;
+        } else {
+          // If subCategory slug doesn't exist, return empty array
+          return res.json({
+            success: true,
+            count: 0,
+            total: 0,
+            page: parseInt(page),
+            pages: 0,
+            data: [],
+          });
+        }
+      }
+    }
+
     const plants = await Plant.find(query)
-      .populate('section', 'name slug')
-      .populate('category', 'name slug')
+      .populate("section", "name slug")
+      .populate("category", "name slug")
+      .populate("subCategory", "name slug")
       .sort({ name: 1 })
       .limit(parseInt(limit))
       .skip((parseInt(page) - 1) * parseInt(limit));
-    
+
     const total = await Plant.countDocuments(query);
-    
+
     res.json({
       success: true,
       count: plants.length,
       total,
       page: parseInt(page),
       pages: Math.ceil(total / limit),
-      data: plants
+      data: plants,
     });
   } catch (error) {
-    console.error('Error in getPlants:', error);
+    console.error("Error in getPlants:", error);
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -87,24 +109,25 @@ export const getPlants = async (req, res) => {
 export const getPlantById = async (req, res) => {
   try {
     const plant = await Plant.findById(req.params.id)
-      .populate('section', 'name slug')
-      .populate('category', 'name slug');
-    
+      .populate("section", "name slug")
+      .populate("category", "name slug")
+      .populate("subCategory", "name slug");
+
     if (!plant) {
       return res.status(404).json({
         success: false,
-        message: 'Plant not found'
+        message: "Plant not found",
       });
     }
-    
+
     res.json({
       success: true,
-      data: plant
+      data: plant,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -115,35 +138,41 @@ export const getPlantById = async (req, res) => {
 export const getPlantBySlug = async (req, res) => {
   try {
     const plant = await Plant.findOne({ slug: req.params.slug })
-      .populate('section', 'name slug')
-      .populate('category', 'name slug');
-    
+      .populate("section", "name slug")
+      .populate("category", "name slug")
+      .populate("subCategory", "name slug");
+
     if (!plant) {
       return res.status(404).json({
         success: false,
-        message: 'Plant not found'
+        message: "Plant not found",
       });
     }
-    
-    // Get related plants (same category)
+
+    // Get related plants (same category or subCategory)
     const relatedPlants = await Plant.find({
-      category: plant.category._id,
-      _id: { $ne: plant._id }
+      $or: [
+        { category: plant.category._id },
+        { subCategory: plant.subCategory?._id },
+      ],
+      _id: { $ne: plant._id },
     })
-    .limit(4)
-    .select('name slug price image');
-    
+      .limit(4)
+      .select("name slug price image section category subCategory")
+      .populate("category", "name")
+      .populate("subCategory", "name");
+
     res.json({
       success: true,
       data: {
         plant,
-        relatedPlants
-      }
+        relatedPlants,
+      },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -155,10 +184,9 @@ export const getPlantsBySection = async (req, res) => {
   try {
     const { sectionId } = req.params;
     const { page = 1, limit = 20 } = req.query;
-    
+
     let sectionQuery = {};
-    
-    // Handle if sectionId is ID or slug
+
     if (mongoose.Types.ObjectId.isValid(sectionId)) {
       sectionQuery._id = sectionId;
     } else {
@@ -172,31 +200,32 @@ export const getPlantsBySection = async (req, res) => {
           total: 0,
           page: parseInt(page),
           pages: 0,
-          data: []
+          data: [],
         });
       }
     }
-    
+
     const plants = await Plant.find({ section: sectionQuery._id })
-      .populate('category', 'name slug')
+      .populate("category", "name slug")
+      .populate("subCategory", "name slug")
       .sort({ name: 1 })
       .limit(parseInt(limit))
       .skip((parseInt(page) - 1) * parseInt(limit));
-    
+
     const total = await Plant.countDocuments({ section: sectionQuery._id });
-    
+
     res.json({
       success: true,
       count: plants.length,
       total,
       page: parseInt(page),
       pages: Math.ceil(total / limit),
-      data: plants
+      data: plants,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -208,10 +237,9 @@ export const getPlantsByCategory = async (req, res) => {
   try {
     const { categoryId } = req.params;
     const { page = 1, limit = 20 } = req.query;
-    
+
     let categoryQuery = {};
-    
-    // Handle if categoryId is ID or slug
+
     if (mongoose.Types.ObjectId.isValid(categoryId)) {
       categoryQuery._id = categoryId;
     } else {
@@ -225,31 +253,87 @@ export const getPlantsByCategory = async (req, res) => {
           total: 0,
           page: parseInt(page),
           pages: 0,
-          data: []
+          data: [],
         });
       }
     }
-    
+
     const plants = await Plant.find({ category: categoryQuery._id })
-      .populate('section', 'name slug')
+      .populate("section", "name slug")
+      .populate("subCategory", "name slug")
       .sort({ name: 1 })
       .limit(parseInt(limit))
       .skip((parseInt(page) - 1) * parseInt(limit));
-    
+
     const total = await Plant.countDocuments({ category: categoryQuery._id });
-    
+
     res.json({
       success: true,
       count: plants.length,
       total,
       page: parseInt(page),
       pages: Math.ceil(total / limit),
-      data: plants
+      data: plants,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Get plants by subCategory
+// @route   GET /api/plants/subcategory/:subCategoryId
+// @access  Public
+export const getPlantsBySubCategory = async (req, res) => {
+  try {
+    const { subCategoryId } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+
+    let subCategoryQuery = {};
+
+    if (mongoose.Types.ObjectId.isValid(subCategoryId)) {
+      subCategoryQuery._id = subCategoryId;
+    } else {
+      const subCategory = await SubCategory.findOne({ slug: subCategoryId });
+      if (subCategory) {
+        subCategoryQuery._id = subCategory._id;
+      } else {
+        return res.json({
+          success: true,
+          count: 0,
+          total: 0,
+          page: parseInt(page),
+          pages: 0,
+          data: [],
+        });
+      }
+    }
+
+    const plants = await Plant.find({ subCategory: subCategoryQuery._id })
+      .populate("section", "name slug")
+      .populate("category", "name slug")
+      .sort({ name: 1 })
+      .limit(parseInt(limit))
+      .skip((parseInt(page) - 1) * parseInt(limit));
+
+    const total = await Plant.countDocuments({
+      subCategory: subCategoryQuery._id,
+    });
+
+    res.json({
+      success: true,
+      count: plants.length,
+      total,
+      page: parseInt(page),
+      pages: Math.ceil(total / limit),
+      data: plants,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
     });
   }
 };
@@ -259,39 +343,56 @@ export const getPlantsByCategory = async (req, res) => {
 // @access  Private/Admin
 export const createPlant = async (req, res) => {
   try {
-    const { name, price, description, image, section, category } = req.body;
-    
+    const { name, price, description, image, section, category, subCategory } =
+      req.body;
+
     // Verify section exists
     const sectionExists = await Section.findById(section);
     if (!sectionExists) {
       return res.status(400).json({
         success: false,
-        message: 'Section not found'
+        message: "Section not found",
       });
     }
-    
+
     // Verify category exists and belongs to section
-    const categoryExists = await Category.findOne({ 
+    const categoryExists = await Category.findOne({
       _id: category,
-      section: section 
+      section: section,
     });
-    
+
     if (!categoryExists) {
       return res.status(400).json({
         success: false,
-        message: 'Category not found in this section'
+        message: "Category not found in this section",
       });
     }
-    
+
+    // Verify subCategory if provided
+    if (subCategory) {
+      const subCategoryExists = await SubCategory.findOne({
+        _id: subCategory,
+        category: category,
+        section: section,
+      });
+
+      if (!subCategoryExists) {
+        return res.status(400).json({
+          success: false,
+          message: "Sub-category not found in this category",
+        });
+      }
+    }
+
     // Generate slug
     let slug = slugify(name, { lower: true, strict: true });
-    
+
     // Check if slug exists
     const existingPlant = await Plant.findOne({ slug });
     if (existingPlant) {
       slug = `${slug}-${Date.now()}`;
     }
-    
+
     const plant = await Plant.create({
       name,
       slug,
@@ -299,19 +400,21 @@ export const createPlant = async (req, res) => {
       description,
       image,
       section,
-      category
+      category,
+      subCategory: subCategory || null,
     });
-    
-    await plant.populate(['section', 'category']);
-    
+
+    await plant.populate(["section", "category", "subCategory"]);
+
     res.status(201).json({
       success: true,
-      data: plant
+      data: plant,
     });
   } catch (error) {
+    console.error("Create plant error:", error);
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -321,50 +424,67 @@ export const createPlant = async (req, res) => {
 // @access  Private/Admin
 export const updatePlant = async (req, res) => {
   try {
-    const { name, price, description, image, section, category } = req.body;
-    
+    const { name, price, description, image, section, category, subCategory } =
+      req.body;
+
     // Verify section exists if provided
     if (section) {
       const sectionExists = await Section.findById(section);
       if (!sectionExists) {
         return res.status(400).json({
           success: false,
-          message: 'Section not found'
+          message: "Section not found",
         });
       }
     }
-    
+
     // Verify category exists and belongs to section if both provided
     if (category && section) {
-      const categoryExists = await Category.findOne({ 
+      const categoryExists = await Category.findOne({
         _id: category,
-        section: section 
+        section: section,
       });
-      
+
       if (!categoryExists) {
         return res.status(400).json({
           success: false,
-          message: 'Category not found in this section'
+          message: "Category not found in this section",
         });
       }
     }
-    
+
+    // Verify subCategory if provided
+    if (subCategory) {
+      const subCategoryExists = await SubCategory.findOne({
+        _id: subCategory,
+        ...(category && { category }),
+        ...(section && { section }),
+      });
+
+      if (!subCategoryExists) {
+        return res.status(400).json({
+          success: false,
+          message: "Sub-category not found",
+        });
+      }
+    }
+
     // Generate new slug if name changed
     let slug;
     if (name) {
       slug = slugify(name, { lower: true, strict: true });
-      
+
       // Check if new slug conflicts with another plant
-      const existingPlant = await Plant.findOne({ 
+      const existingPlant = await Plant.findOne({
         slug,
-        _id: { $ne: req.params.id }
+        _id: { $ne: req.params.id },
       });
-      
+
       if (existingPlant) {
         slug = `${slug}-${Date.now()}`;
       }
     }
-    
+
     const updateData = {};
     if (name) updateData.name = name;
     if (slug) updateData.slug = slug;
@@ -373,28 +493,29 @@ export const updatePlant = async (req, res) => {
     if (image) updateData.image = image;
     if (section) updateData.section = section;
     if (category) updateData.category = category;
-    
-    const plant = await Plant.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true, runValidators: true }
-    ).populate(['section', 'category']);
-    
+    if (subCategory !== undefined) updateData.subCategory = subCategory || null;
+
+    const plant = await Plant.findByIdAndUpdate(req.params.id, updateData, {
+      new: true,
+      runValidators: true,
+    }).populate(["section", "category", "subCategory"]);
+
     if (!plant) {
       return res.status(404).json({
         success: false,
-        message: 'Plant not found'
+        message: "Plant not found",
       });
     }
-    
+
     res.json({
       success: true,
-      data: plant
+      data: plant,
     });
   } catch (error) {
+    console.error("Update plant error:", error);
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -405,24 +526,24 @@ export const updatePlant = async (req, res) => {
 export const deletePlant = async (req, res) => {
   try {
     const plant = await Plant.findById(req.params.id);
-    
+
     if (!plant) {
       return res.status(404).json({
         success: false,
-        message: 'Plant not found'
+        message: "Plant not found",
       });
     }
-    
+
     await plant.deleteOne();
-    
+
     res.json({
       success: true,
-      message: 'Plant deleted successfully'
+      message: "Plant deleted successfully",
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
