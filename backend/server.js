@@ -15,42 +15,42 @@ import userRoutes from './routes/userRoutes.js';
 // Initialize express
 const app = express();
 
-// Get allowed origins from environment variable or use defaults
-const getAllowedOrigins = () => {
-  // For production, use the frontend URL from environment variable
-  if (process.env.NODE_ENV === 'production') {
-    const frontendUrl = process.env.FRONTEND_URL || 'https://your-frontend.vercel.app';
-    return [frontendUrl, 'http://localhost:5173', 'http://localhost:3000'];
+// CORS Configuration - PRODUCTION READY
+const allowedOrigins = [
+  'https://homegarden-frontend-phi.vercel.app',  // Your Vercel frontend
+  'https://homegarden-frontend.vercel.app',      // Alternative Vercel URL
+  'http://localhost:5173',                        // Local development
+  'http://localhost:3000'                          // Alternative local port
+];
+
+// Comprehensive CORS middleware
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  
+  // Check if the origin is allowed
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
   }
-  // For development, allow all origins
-  return '*';
-};
-
-// CORS configuration - PRODUCTION READY
-const allowedOrigins = getAllowedOrigins();
-
-app.use(cors({
-  origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, Postman)
-    if (!origin) return callback(null, true);
-    
-    // Check if origin is allowed
-    if (allowedOrigins === '*' || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.log('Blocked origin:', origin);
-      callback(new Error('CORS policy does not allow access from this origin'));
-    }
-  },
-  credentials: true,
-  optionsSuccessStatus: 200
-}));
+  
+  // Set other CORS headers
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  
+  next();
+});
 
 // Body parser middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Request logging middleware (optional - can be removed in production)
+// Request logging middleware (only in development)
 if (process.env.NODE_ENV !== 'production') {
   app.use((req, res, next) => {
     console.log(`${req.method} ${req.path}`);
@@ -64,13 +64,17 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/plants', plantRoutes);
 app.use('/api/users', userRoutes);
 
-// Health check route - IMPORTANT for Render to know your app is healthy
+// Health check route
 app.get('/health', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Server is running',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    cors: {
+      allowedOrigins,
+      currentOrigin: req.headers.origin || 'none'
+    }
   });
 });
 
@@ -87,6 +91,9 @@ app.get('/', (req, res) => {
       plants: '/api/plants',
       users: '/api/users',
       health: '/health'
+    },
+    cors: {
+      allowedOrigins
     }
   });
 });
@@ -103,29 +110,27 @@ app.use((req, res) => {
 app.use((err, req, res, next) => {
   console.error('Error:', err.message);
   
-  // Don't expose stack traces in production
   const response = {
     success: false,
     message: err.message || 'Internal server error'
   };
   
-  // Add stack trace only in development
   if (process.env.NODE_ENV === 'development') {
     response.stack = err.stack;
   }
   
-  // Handle CORS errors specifically
   if (err.message === 'Not allowed by CORS') {
     return res.status(403).json({
       success: false,
-      message: 'CORS policy does not allow access from this origin'
+      message: 'CORS policy does not allow access from this origin',
+      allowedOrigins
     });
   }
   
   res.status(err.status || 500).json(response);
 });
 
-// MongoDB connection with better error handling for production
+// MongoDB connection with better error handling
 const connectDB = async () => {
   try {
     console.log('🔌 Attempting to connect to MongoDB...');
@@ -136,10 +141,10 @@ const connectDB = async () => {
     }
     
     const conn = await mongoose.connect(process.env.MONGO_URI, {
-      serverSelectionTimeoutMS: 5000, // Timeout after 5 seconds
-      socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
-      maxPoolSize: 10, // Maintain up to 10 socket connections
-      minPoolSize: 2, // Maintain at least 2 socket connections
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      maxPoolSize: 10,
+      minPoolSize: 2,
     });
     
     console.log(`✅ MongoDB connected successfully: ${conn.connection.host}`);
@@ -152,17 +157,16 @@ const connectDB = async () => {
     console.error('Error message:', error.message);
     
     if (error.name === 'MongooseServerSelectionError') {
-      console.error('\n🔍 Troubleshooting tips for production:');
+      console.error('\n🔍 Troubleshooting tips:');
       console.error('1. Make sure your Render IPs are whitelisted in MongoDB Atlas:');
       console.error('   - Go to https://cloud.mongodb.com -> Network Access');
-      console.error('   - Add these Render outbound IPs (check Render dashboard -> Connect -> Outbound):');
-      console.error('   - Also add your own IP for admin access');
-      console.error('2. Verify your MONGO_URI environment variable is correct in Render dashboard');
-      console.error('3. Make sure your cluster is running and not paused');
-      console.error('4. Check if you have the correct username and password in the connection string');
+      console.error('   - Add these Render outbound IPs:');
+      console.error('     • 74.220.48.0/24');
+      console.error('     • 74.220.56.0/24');
+      console.error('2. Verify your MONGO_URI environment variable is correct');
+      console.error('3. Make sure your cluster is running');
     }
     
-    // Don't exit immediately in production, retry connection
     if (process.env.NODE_ENV === 'production') {
       console.log('🔄 Retrying connection in 5 seconds...');
       setTimeout(connectDB, 5000);
@@ -184,7 +188,6 @@ mongoose.connection.on('error', (err) => {
 mongoose.connection.on('disconnected', () => {
   console.log('🟡 Mongoose disconnected');
   
-  // Attempt to reconnect in production
   if (process.env.NODE_ENV === 'production') {
     console.log('🔄 Attempting to reconnect...');
     setTimeout(connectDB, 5000);
@@ -230,9 +233,12 @@ const server = app.listen(PORT, () => {
   console.log(`✅ Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
   console.log(`📍 Local: http://localhost:${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔒 CORS allowed origins:`, allowedOrigins);
   
   if (process.env.NODE_ENV === 'production') {
     console.log('🔒 Production mode: CORS restricted to allowed origins');
+    console.log('📌 Allowed origins:');
+    allowedOrigins.forEach(origin => console.log(`   • ${origin}`));
   }
 });
 
