@@ -9,12 +9,13 @@ const ManagePlants = () => {
   const [filteredPlants, setFilteredPlants] = useState([]);
   const [sections, setSections] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [varieties, setVarieties] = useState([]); // Renamed from subCategories
+  const [varieties, setVarieties] = useState([]);
   const [filteredCategories, setFilteredCategories] = useState([]);
-  const [filteredVarieties, setFilteredVarieties] = useState([]); // Renamed from filteredSubCategories
+  const [filteredVarieties, setFilteredVarieties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(null);
+  const [showForm, setShowForm] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -23,20 +24,20 @@ const ManagePlants = () => {
     description: "",
     section: "",
     category: "",
-    variety: "", // Renamed from subCategory
-    images: [], // Changed from single image to array
+    variety: "",
+    images: [],
     inStock: true,
   });
   const [editingId, setEditingId] = useState(null);
-  const [imageFiles, setImageFiles] = useState([]); // Changed from single file to array
-  const [imagePreviews, setImagePreviews] = useState([]); // Changed from single preview to array
-  const [oldImagePublicIds, setOldImagePublicIds] = useState([]); // Store old image public IDs for cleanup
+  const [imageFiles, setImageFiles] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
+  const [oldImagePublicIds, setOldImagePublicIds] = useState([]);
 
   // Filter, search & pagination state
   const [searchTerm, setSearchTerm] = useState("");
   const [filterSection, setFilterSection] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
-  const [filterVariety, setFilterVariety] = useState("all"); // Renamed from filterSubCategory
+  const [filterVariety, setFilterVariety] = useState("all");
   const [filterPriceMin, setFilterPriceMin] = useState("");
   const [filterPriceMax, setFilterPriceMax] = useState("");
   const [filterInStock, setFilterInStock] = useState(false);
@@ -45,9 +46,24 @@ const ManagePlants = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
 
+  // UI state for mobile
+  const [showFilters, setShowFilters] = useState(false);
+  const [activeFilterCount, setActiveFilterCount] = useState(0);
+
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Calculate active filter count
+  useEffect(() => {
+    let count = 0;
+    if (filterSection !== "all") count++;
+    if (filterCategory !== "all") count++;
+    if (filterVariety !== "all") count++;
+    if (filterPriceMin || filterPriceMax) count++;
+    if (filterInStock) count++;
+    setActiveFilterCount(count);
+  }, [filterSection, filterCategory, filterVariety, filterPriceMin, filterPriceMax, filterInStock]);
 
   // Update categories when section changes
   useEffect(() => {
@@ -57,7 +73,6 @@ const ManagePlants = () => {
       );
       setFilteredCategories(filtered);
 
-      // Reset category if current selection not in filtered
       if (!filtered.some((c) => c._id === formData.category)) {
         setFormData((prev) => ({ ...prev, category: "", variety: "" }));
       }
@@ -75,7 +90,6 @@ const ManagePlants = () => {
       );
       setFilteredVarieties(filtered);
 
-      // Reset variety if current selection not in filtered
       if (!filtered.some((v) => v._id === formData.variety)) {
         setFormData((prev) => ({ ...prev, variety: "" }));
       }
@@ -89,24 +103,20 @@ const ManagePlants = () => {
   useEffect(() => {
     let result = [...plants];
 
-    // Filter by section
     if (filterSection !== "all") {
       result = result.filter((plant) => plant.section?._id === filterSection);
     }
 
-    // Filter by category
     if (filterCategory !== "all") {
       result = result.filter((plant) => plant.category?._id === filterCategory);
     }
 
-    // Filter by variety
     if (filterVariety !== "all") {
       result = result.filter(
-        (plant) => plant.variety?._id === filterVariety, // Changed from subCategory to variety
+        (plant) => plant.variety?._id === filterVariety,
       );
     }
 
-    // Filter by price range
     if (filterPriceMin) {
       result = result.filter(
         (plant) => plant.price >= parseFloat(filterPriceMin),
@@ -118,12 +128,10 @@ const ManagePlants = () => {
       );
     }
 
-    // Filter by stock
     if (filterInStock) {
       result = result.filter((plant) => plant.inStock === true);
     }
 
-    // Apply search
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       result = result.filter(
@@ -133,7 +141,6 @@ const ManagePlants = () => {
       );
     }
 
-    // Apply sorting
     result.sort((a, b) => {
       let comparison = 0;
       if (sortBy === "name") {
@@ -148,7 +155,7 @@ const ManagePlants = () => {
         comparison = (a.category?.name || "").localeCompare(
           b.category?.name || "",
         );
-      } else if (sortBy === "variety") { // Changed from subCategory to variety
+      } else if (sortBy === "variety") {
         comparison = (a.variety?.name || "").localeCompare(
           b.variety?.name || "",
         );
@@ -180,7 +187,7 @@ const ManagePlants = () => {
         await Promise.all([
           api.get("/sections"),
           api.get("/categories"),
-          api.get("/subcategories"), // API endpoint remains /subcategories
+          api.get("/subcategories"),
           api.get("/plants"),
         ]);
       setSections(sectionsRes.data.data || []);
@@ -206,15 +213,12 @@ const ManagePlants = () => {
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files);
     if (files.length > 0) {
-      // Limit to 3 images
       const newFiles = [...imageFiles, ...files].slice(0, 3);
       setImageFiles(newFiles);
 
-      // Create previews
       const newPreviews = newFiles.map(file => URL.createObjectURL(file));
       setImagePreviews(newPreviews);
 
-      // Clear any existing image URLs in form data
       setFormData((prev) => ({ ...prev, images: [] }));
     }
   };
@@ -226,7 +230,6 @@ const ManagePlants = () => {
     setImageFiles(newFiles);
     setImagePreviews(newPreviews);
 
-    // Revoke object URL to avoid memory leaks
     URL.revokeObjectURL(imagePreviews[index]);
   };
 
@@ -239,7 +242,7 @@ const ManagePlants = () => {
       !formData.description ||
       !formData.section ||
       !formData.category ||
-      !formData.variety // Variety is now required
+      !formData.variety
     ) {
       toast.error("Please fill all required fields");
       return;
@@ -249,16 +252,13 @@ const ManagePlants = () => {
     try {
       let imageUrls = [...(formData.images || [])];
 
-      // Upload new images if selected
       if (imageFiles.length > 0) {
         const uploadPromises = imageFiles.map(file => uploadImage(file));
         const uploadResults = await Promise.all(uploadPromises);
 
-        // Extract URLs from upload results
         const newUrls = uploadResults.map(result => result.url);
         imageUrls = [...imageUrls, ...newUrls];
 
-        // Store old image public IDs for deletion if editing
         if (editingId && oldImagePublicIds.length > 0) {
           try {
             await Promise.all(oldImagePublicIds.map(id => deleteImage(id)));
@@ -275,8 +275,8 @@ const ManagePlants = () => {
         description: formData.description,
         section: formData.section,
         category: formData.category,
-        variety: formData.variety, // Changed from subCategory to variety
-        images: imageUrls, // Changed from single image to array
+        variety: formData.variety,
+        images: imageUrls,
         inStock: formData.inStock,
       };
 
@@ -290,6 +290,7 @@ const ManagePlants = () => {
 
       resetForm();
       fetchData();
+      setShowForm(false);
     } catch (error) {
       console.error("Submit error:", error);
       toast.error(error.response?.data?.message || "Operation failed");
@@ -306,15 +307,13 @@ const ManagePlants = () => {
       description: plant.description,
       section: plant.section?._id || "",
       category: plant.category?._id || "",
-      variety: plant.variety?._id || "", // Changed from subCategory to variety
+      variety: plant.variety?._id || "",
       images: plant.images || [],
       inStock: plant.inStock !== false,
     });
 
-    // Set image previews from existing images
     setImagePreviews(plant.images || []);
 
-    // Store old image public IDs for cleanup
     if (plant.images && plant.images.length > 0) {
       const publicIds = plant.images
         .map(img => extractPublicIdFromUrl(img))
@@ -323,6 +322,7 @@ const ManagePlants = () => {
     }
 
     setImageFiles([]);
+    setShowForm(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -333,7 +333,6 @@ const ManagePlants = () => {
 
     setDeleteLoading(id);
     try {
-      // Delete images from Cloudinary first if they exist
       if (images && images.length > 0) {
         const publicIds = images
           .map(img => extractPublicIdFromUrl(img))
@@ -349,7 +348,6 @@ const ManagePlants = () => {
         }
       }
 
-      // Delete from database
       await api.delete(`/plants/${id}`);
       toast.success("Plant deleted successfully");
       fetchData();
@@ -382,6 +380,7 @@ const ManagePlants = () => {
 
   const handleCancel = () => {
     resetForm();
+    setShowForm(false);
   };
 
   const clearAllFilters = () => {
@@ -394,6 +393,7 @@ const ManagePlants = () => {
     setSearchTerm("");
     setSortBy("name");
     setSortOrder("asc");
+    setShowFilters(false);
   };
 
   // Pagination calculations
@@ -410,312 +410,93 @@ const ManagePlants = () => {
         <title>Manage Plants - HomeGarden Admin</title>
       </Helmet>
 
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-        <div className="container mx-auto px-4 max-w-7xl">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">
-            Manage Plants
-          </h1>
+      {/* Add animation styles */}
+      <style>
+        {`
+          @keyframes slideDown {
+            from {
+              opacity: 0;
+              transform: translateY(-10px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+          .animate-slide-down {
+            animation: slideDown 0.2s ease-out;
+          }
+        `}
+      </style>
 
-          {/* Form Card */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden mb-8">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                {editingId ? "Edit Plant" : "Add New Plant"}
-              </h2>
-            </div>
-
-            <form onSubmit={handleSubmit} className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  {/* Plant Name */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Plant Name *
-                    </label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
-                               focus:ring-2 focus:ring-green-500 focus:border-transparent
-                               bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      required
-                    />
-                  </div>
-
-                  {/* Price */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Price (₹) *
-                    </label>
-                    <input
-                      type="number"
-                      name="price"
-                      value={formData.price}
-                      onChange={handleInputChange}
-                      min="0"
-                      step="0.01"
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
-                               focus:ring-2 focus:ring-green-500 focus:border-transparent
-                               bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      required
-                    />
-                  </div>
-
-                  {/* Section */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Section *
-                    </label>
-                    <select
-                      name="section"
-                      value={formData.section}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
-                               focus:ring-2 focus:ring-green-500 focus:border-transparent
-                               bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      required
-                    >
-                      <option value="">Select a section</option>
-                      {sections.map((section) => (
-                        <option key={section._id} value={section._id}>
-                          {section.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Category */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Category *
-                    </label>
-                    <select
-                      name="category"
-                      value={formData.category}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
-                               focus:ring-2 focus:ring-green-500 focus:border-transparent
-                               bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      required
-                      disabled={!formData.section}
-                    >
-                      <option value="">Select a category</option>
-                      {filteredCategories.map((category) => (
-                        <option key={category._id} value={category._id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
-                    {!formData.section && (
-                      <p className="text-xs text-amber-600 mt-1">
-                        Please select a section first
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Variety - Now Required */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Variety *
-                    </label>
-                    <select
-                      name="variety"
-                      value={formData.variety}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
-                               focus:ring-2 focus:ring-green-500 focus:border-transparent
-                               bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      required
-                      disabled={!formData.category}
-                    >
-                      <option value="">Select a variety</option>
-                      {filteredVarieties.map((variety) => (
-                        <option key={variety._id} value={variety._id}>
-                          {variety.name}
-                        </option>
-                      ))}
-                    </select>
-                    {!formData.category && formData.section && (
-                      <p className="text-xs text-amber-600 mt-1">
-                        Please select a category first
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  {/* Description */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Description *
-                    </label>
-                    <textarea
-                      name="description"
-                      value={formData.description}
-                      onChange={handleInputChange}
-                      rows="3"
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
-                               focus:ring-2 focus:ring-green-500 focus:border-transparent
-                               bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
-                      required
-                    />
-                  </div>
-
-                  {/* In Stock Checkbox */}
-                  <div className="flex items-center space-x-3">
-                    <input
-                      type="checkbox"
-                      name="inStock"
-                      id="inStock"
-                      checked={formData.inStock}
-                      onChange={handleInputChange}
-                      className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                    />
-                    <label
-                      htmlFor="inStock"
-                      className="text-sm font-medium text-gray-700 dark:text-gray-300"
-                    >
-                      In Stock (Available for purchase)
-                    </label>
-                  </div>
-
-                  {/* Multiple Image Upload */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Plant Images * (Max 3 photos)
-                    </label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      multiple
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
-                               bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      required={!editingId && imagePreviews.length === 0}
-                    />
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      You can select up to 3 images. First image will be used as primary.
-                    </p>
-
-                    {/* Image Previews */}
-                    {imagePreviews.length > 0 && (
-                      <div className="mt-4 grid grid-cols-3 gap-2">
-                        {imagePreviews.map((preview, index) => (
-                          <div key={index} className="relative">
-                            <img
-                              src={preview}
-                              alt={`Preview ${index + 1}`}
-                              className="w-full h-24 object-cover rounded-lg border-2 border-green-500"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveImage(index)}
-                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 
-                                       hover:bg-red-600 transition-colors shadow-lg"
-                              title="Remove image"
-                            >
-                              <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M6 18L18 6M6 6l12 12"
-                                />
-                              </svg>
-                            </button>
-                            {index === 0 && (
-                              <span className="absolute bottom-1 left-1 bg-green-600 text-white text-xs px-1 rounded">
-                                Primary
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Form Actions */}
-                  <div className="flex space-x-3 pt-4">
-                    <button
-                      type="submit"
-                      disabled={submitting}
-                      className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold 
-                               rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed
-                               flex items-center"
-                    >
-                      {submitting ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                          Saving...
-                        </>
-                      ) : editingId ? (
-                        "Update Plant"
-                      ) : (
-                        "Add Plant"
-                      )}
-                    </button>
-
-                    {editingId && (
-                      <button
-                        type="button"
-                        onClick={handleCancel}
-                        className="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white font-semibold 
-                                 rounded-lg transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    )}
-                  </div>
-                </div>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        {/* Sticky Header with Search and Filter */}
+        <div className="sticky top-16 z-40 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+          <div className="container mx-auto px-4 py-3">
+            <div className="flex items-center gap-2">
+              {/* Search Bar - 70% width */}
+              <div className="flex-1 relative">
+                <input
+                  type="text"
+                  placeholder="🔍 Search plants..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 bg-gray-100 dark:bg-gray-700 border-0 rounded-xl text-gray-900 dark:text-white text-sm placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:outline-none"
+                />
+                <svg
+                  className="absolute left-3 top-3.5 w-4 h-4 text-gray-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
               </div>
-            </form>
+
+              {/* Filter Button - 30% width */}
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all ${showFilters
+                    ? 'bg-green-600 text-white'
+                    : activeFilterCount > 0
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-2 border-green-500'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                  }`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+                <span className="font-medium text-sm">Filters</span>
+                {activeFilterCount > 0 && (
+                  <span className="bg-green-600 text-white w-5 h-5 rounded-full text-xs flex items-center justify-center">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
+        </div>
 
-          {/* Advanced Search and Filter Bar */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden mb-6">
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-                {/* Search */}
-                <div className="lg:col-span-2 xl:col-span-1">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Search Plants
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="Search by name or description..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
-                               focus:ring-2 focus:ring-green-500 focus:border-transparent
-                               bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    />
-                    <svg
-                      className="absolute left-3 top-3.5 w-5 h-5 text-gray-400"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                      />
-                    </svg>
-                  </div>
-                </div>
+        {/* Collapsible Filters Panel */}
+        {showFilters && (
+          <div className="container mx-auto px-4 py-4 animate-slide-down">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-5 border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Advanced Filters</h3>
+                {activeFilterCount > 0 && (
+                  <button
+                    onClick={clearAllFilters}
+                    className="text-sm text-red-600 font-medium px-3 py-1.5 bg-red-50 dark:bg-red-900/20 rounded-lg"
+                  >
+                    Clear All
+                  </button>
+                )}
+              </div>
 
-                {/* Filter by Section */}
+              <div className="space-y-4">
+                {/* Section Filter */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
                     Section
                   </label>
                   <select
@@ -725,9 +506,7 @@ const ManagePlants = () => {
                       setFilterCategory("all");
                       setFilterVariety("all");
                     }}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
-                             focus:ring-2 focus:ring-green-500 focus:border-transparent
-                             bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   >
                     <option value="all">All Sections</option>
                     {sections.map((section) => (
@@ -738,9 +517,9 @@ const ManagePlants = () => {
                   </select>
                 </div>
 
-                {/* Filter by Category */}
+                {/* Category Filter */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
                     Category
                   </label>
                   <select
@@ -749,10 +528,8 @@ const ManagePlants = () => {
                       setFilterCategory(e.target.value);
                       setFilterVariety("all");
                     }}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
-                             focus:ring-2 focus:ring-green-500 focus:border-transparent
-                             bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     disabled={filterSection === "all"}
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <option value="all">All Categories</option>
                     {filterSection !== "all" &&
@@ -766,18 +543,16 @@ const ManagePlants = () => {
                   </select>
                 </div>
 
-                {/* Filter by Variety */}
+                {/* Variety Filter */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
                     Variety
                   </label>
                   <select
                     value={filterVariety}
                     onChange={(e) => setFilterVariety(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
-                             focus:ring-2 focus:ring-green-500 focus:border-transparent
-                             bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     disabled={filterCategory === "all"}
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <option value="all">All Varieties</option>
                     {filterCategory !== "all" &&
@@ -791,20 +566,18 @@ const ManagePlants = () => {
                   </select>
                 </div>
 
-                {/* Price Range */}
+                {/* Price Range - Side by side on mobile */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
                     Price Range (₹)
                   </label>
-                  <div className="flex space-x-2">
+                  <div className="flex gap-2">
                     <input
                       type="number"
                       placeholder="Min"
                       value={filterPriceMin}
                       onChange={(e) => setFilterPriceMin(e.target.value)}
-                      className="w-1/2 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
-                               focus:ring-2 focus:ring-green-500 focus:border-transparent
-                               bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      className="w-1/2 px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
                       min="0"
                     />
                     <input
@@ -812,271 +585,458 @@ const ManagePlants = () => {
                       placeholder="Max"
                       value={filterPriceMax}
                       onChange={(e) => setFilterPriceMax(e.target.value)}
-                      className="w-1/2 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
-                               focus:ring-2 focus:ring-green-500 focus:border-transparent
-                               bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      className="w-1/2 px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
                       min="0"
                     />
                   </div>
                 </div>
 
-                {/* In Stock Filter */}
-                <div className="flex items-center space-x-3 pt-8">
-                  <input
-                    type="checkbox"
-                    id="filterInStock"
-                    checked={filterInStock}
-                    onChange={(e) => setFilterInStock(e.target.checked)}
-                    className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                  />
-                  <label
-                    htmlFor="filterInStock"
-                    className="text-sm font-medium text-gray-700 dark:text-gray-300"
-                  >
-                    In Stock Only
-                  </label>
-                </div>
+                {/* In Stock Toggle */}
+                <label className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl cursor-pointer">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Show in stock only
+                  </span>
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={filterInStock}
+                      onChange={(e) => setFilterInStock(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-300 dark:bg-gray-600 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                  </div>
+                </label>
 
-                {/* Sort By */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Sort By
-                  </label>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
-                             focus:ring-2 focus:ring-green-500 focus:border-transparent
-                             bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  >
-                    <option value="name">Name</option>
-                    <option value="price">Price</option>
-                    <option value="section">Section</option>
-                    <option value="category">Category</option>
-                    <option value="variety">Variety</option>
-                    <option value="createdAt">Date Added</option>
-                  </select>
-                </div>
-
-                {/* Sort Order */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Order
-                  </label>
-                  <select
-                    value={sortOrder}
-                    onChange={(e) => setSortOrder(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
-                             focus:ring-2 focus:ring-green-500 focus:border-transparent
-                             bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  >
-                    <option value="asc">Ascending</option>
-                    <option value="desc">Descending</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Active Filters and Results */}
-              <div className="mt-4 flex flex-wrap items-center justify-between">
-                <div className="text-sm text-gray-600 dark:text-gray-400">
-                  Showing {currentItems.length} of {filteredPlants.length}{" "}
-                  plants
-                  {searchTerm && ` (filtered from ${plants.length} total)`}
-                </div>
-
-                {(filterSection !== "all" ||
-                  filterCategory !== "all" ||
-                  filterVariety !== "all" ||
-                  filterPriceMin ||
-                  filterPriceMax ||
-                  filterInStock) && (
-                    <button
-                      onClick={clearAllFilters}
-                      className="text-sm text-red-600 hover:text-red-700 font-medium"
+                {/* Sort Options */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                      Sort By
+                    </label>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     >
-                      Clear All Filters
-                    </button>
-                  )}
+                      <option value="name">Name</option>
+                      <option value="price">Price</option>
+                      <option value="section">Section</option>
+                      <option value="category">Category</option>
+                      <option value="variety">Variety</option>
+                      <option value="createdAt">Date Added</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                      Order
+                    </label>
+                    <select
+                      value={sortOrder}
+                      onChange={(e) => setSortOrder(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    >
+                      <option value="asc">Ascending</option>
+                      <option value="desc">Descending</option>
+                    </select>
+                  </div>
+                </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        <div className="container mx-auto px-4 py-6">
+          {/* Header with Add Button */}
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Manage Plants
+            </h1>
+            {!showForm && !editingId && (
+              <button
+                onClick={() => setShowForm(true)}
+                className="bg-green-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg hover:bg-green-700 transition-all flex items-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Add New Plant</span>
+              </button>
+            )}
+          </div>
+
+          {/* Form Card - Always visible when showForm is true or editing */}
+          {(showForm || editingId) && (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 mb-6 overflow-hidden">
+              <div className="p-5 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 flex items-center justify-between">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                  {editingId ? "✏️ Edit Plant" : "➕ Add New Plant"}
+                </h2>
+                <button
+                  onClick={handleCancel}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit} className="p-5 space-y-4">
+                {/* Plant Name */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                    Plant Name *
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    placeholder="e.g., Alphonso Mango"
+                    required
+                  />
+                </div>
+
+                {/* Price */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                    Price (₹) *
+                  </label>
+                  <input
+                    type="number"
+                    name="price"
+                    value={formData.price}
+                    onChange={handleInputChange}
+                    min="0"
+                    step="0.01"
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    placeholder="399"
+                    required
+                  />
+                </div>
+
+                {/* Section, Category, Variety in vertical layout for mobile */}
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                      Section *
+                    </label>
+                    <select
+                      name="section"
+                      value={formData.section}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      required
+                    >
+                      <option value="">Select section</option>
+                      {sections.map((section) => (
+                        <option key={section._id} value={section._id}>
+                          {section.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                      Category *
+                    </label>
+                    <select
+                      name="category"
+                      value={formData.category}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      required
+                      disabled={!formData.section}
+                    >
+                      <option value="">Select category</option>
+                      {filteredCategories.map((category) => (
+                        <option key={category._id} value={category._id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                      Variety *
+                    </label>
+                    <select
+                      name="variety"
+                      value={formData.variety}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      required
+                      disabled={!formData.category}
+                    >
+                      <option value="">Select variety</option>
+                      {filteredVarieties.map((variety) => (
+                        <option key={variety._id} value={variety._id}>
+                          {variety.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                    Description *
+                  </label>
+                  <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    rows="3"
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
+                    placeholder="Plant description..."
+                    required
+                  />
+                </div>
+
+                {/* In Stock Toggle */}
+                <label className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl cursor-pointer">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    In Stock
+                  </span>
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      name="inStock"
+                      checked={formData.inStock}
+                      onChange={handleInputChange}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-300 dark:bg-gray-600 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                  </div>
+                </label>
+
+                {/* Image Upload */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                    Plant Images * (Max 3)
+                  </label>
+                  <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-4 text-center">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      multiple
+                      className="hidden"
+                      id="image-upload"
+                    />
+                    <label
+                      htmlFor="image-upload"
+                      className="cursor-pointer inline-flex items-center gap-2 text-green-600 dark:text-green-400"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span>Click to upload images</span>
+                    </label>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      {imageFiles.length}/3 images selected
+                    </p>
+                  </div>
+
+                  {/* Image Previews */}
+                  {imagePreviews.length > 0 && (
+                    <div className="mt-4 grid grid-cols-3 gap-2">
+                      {imagePreviews.map((preview, index) => (
+                        <div key={index} className="relative aspect-square">
+                          <img
+                            src={preview}
+                            alt={`Preview ${index + 1}`}
+                            className="w-full h-full object-cover rounded-xl border-2 border-green-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(index)}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 shadow-lg"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                          {index === 0 && (
+                            <span className="absolute bottom-1 left-1 bg-green-600 text-white text-xs px-1.5 py-0.5 rounded-full">
+                              Primary
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Form Actions */}
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-4 rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+                  >
+                    {submitting ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : editingId ? (
+                      'Update Plant'
+                    ) : (
+                      'Add Plant'
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleCancel}
+                    className="flex-1 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white font-semibold py-4 rounded-xl transition-all text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* Results Summary */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-bold text-gray-900 dark:text-white">
+                {filteredPlants.length}
+              </span>
+              <span className="text-gray-600 dark:text-gray-400 text-sm">
+                {filteredPlants.length === 1 ? 'plant' : 'plants'} found
+              </span>
             </div>
           </div>
 
           {/* Plants List */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Plants List ({filteredPlants.length})
-              </h2>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin" />
             </div>
-
-            {loading ? (
-              <div className="p-12 text-center">
-                <div className="inline-block w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
-                <p className="mt-4 text-gray-600 dark:text-gray-400">
-                  Loading plants...
-                </p>
-              </div>
-            ) : filteredPlants.length === 0 ? (
-              <div className="p-12 text-center">
-                <div className="text-6xl mb-4">🌱</div>
-                <p className="text-gray-600 dark:text-gray-400">
-                  {searchTerm
-                    ? "No plants match your search"
-                    : "No plants found. Create your first plant above."}
-                </p>
-              </div>
-            ) : (
-              <>
-                <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {currentItems.map((plant) => (
-                    <div
-                      key={plant._id}
-                      className="p-6 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
-                    >
-                      <div className="flex items-center space-x-4">
-                        {/* Show first image as thumbnail */}
+          ) : filteredPlants.length === 0 ? (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-12 text-center border border-gray-200 dark:border-gray-700">
+              <div className="text-6xl mb-4 opacity-30">🌱</div>
+              <p className="text-gray-600 dark:text-gray-400 text-lg mb-2">No plants found</p>
+              <p className="text-sm text-gray-500 dark:text-gray-500">
+                {searchTerm ? 'Try adjusting your search' : 'Create your first plant above'}
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-3">
+                {currentItems.map((plant) => (
+                  <div
+                    key={plant._id}
+                    className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all"
+                  >
+                    <div className="flex items-center p-4">
+                      {/* Plant Image */}
+                      <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0">
                         <img
                           src={plant.images?.[0] || plant.image}
                           alt={plant.name}
-                          className="w-20 h-20 object-cover rounded-lg"
+                          className="w-full h-full object-cover"
                         />
+                      </div>
 
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2 flex-wrap gap-2">
-                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                              {plant.name}
-                            </h3>
-                            <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full">
-                              {plant.section?.name}
+                      {/* Plant Info */}
+                      <div className="flex-1 ml-4">
+                        <h3 className="text-base font-bold text-gray-900 dark:text-white mb-1">
+                          {plant.name}
+                        </h3>
+                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                          {plant.section && (
+                            <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full">
+                              {plant.section.name}
                             </span>
-                            <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs rounded-full">
-                              {plant.category?.name}
+                          )}
+                          {plant.category && (
+                            <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs rounded-full">
+                              {plant.category.name}
                             </span>
-                            {plant.variety && (
-                              <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-xs rounded-full">
-                                {plant.variety.name}
-                              </span>
-                            )}
-                            {!plant.inStock && (
-                              <span className="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-xs rounded-full">
-                                Out of Stock
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
-                            {plant.description}
-                          </p>
-                          <div className="flex items-center space-x-4 mt-2">
-                            <span className="text-lg font-bold text-green-600 dark:text-green-400">
-                              ₹{plant.price}
+                          )}
+                          {plant.variety && (
+                            <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-xs rounded-full">
+                              {plant.variety.name}
                             </span>
-                            {plant.images && (
-                              <span className="text-xs text-gray-500 dark:text-gray-500">
-                                {plant.images.length} {plant.images.length === 1 ? 'photo' : 'photos'}
-                              </span>
-                            )}
-                            <span className="text-xs text-gray-500 dark:text-gray-500">
-                              Added: {new Date(plant.createdAt).toLocaleDateString()}
-                            </span>
-                          </div>
+                          )}
                         </div>
-
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleEdit(plant)}
-                            className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 
-                                     dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-                            title="Edit plant"
-                            disabled={deleteLoading === plant._id}
-                          >
-                            ✏️
-                          </button>
-                          <button
-                            onClick={() => handleDelete(plant._id, plant.name, plant.images)}
-                            className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 
-                                     dark:hover:bg-red-900/30 rounded-lg transition-colors relative"
-                            title="Delete plant"
-                            disabled={deleteLoading === plant._id}
-                          >
-                            {deleteLoading === plant._id ? (
-                              <div className="w-5 h-5 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                              "🗑️"
-                            )}
-                          </button>
+                        <div className="flex items-center gap-2">
+                          <span className="text-base font-bold text-green-600 dark:text-green-400">
+                            ₹{plant.price}
+                          </span>
+                          {plant.images && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              📸 {plant.images.length}
+                            </span>
+                          )}
+                          {!plant.inStock && (
+                            <span className="text-xs text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30 px-2 py-0.5 rounded-full">
+                              Out of Stock
+                            </span>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
 
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="p-6 border-t border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
-                        Page {currentPage} of {totalPages}
-                      </div>
-                      <div className="flex space-x-2">
+                      {/* Actions */}
+                      <div className="flex flex-col gap-2 ml-2">
                         <button
-                          onClick={() => paginate(currentPage - 1)}
-                          disabled={currentPage === 1}
-                          className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg 
-                                   text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 
-                                   disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          onClick={() => handleEdit(plant)}
+                          className="p-3 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all"
+                          title="Edit"
                         >
-                          Previous
+                          ✏️
                         </button>
-
-                        {[...Array(totalPages)].map((_, i) => {
-                          const pageNum = i + 1;
-                          if (
-                            pageNum === 1 ||
-                            pageNum === totalPages ||
-                            (pageNum >= currentPage - 1 &&
-                              pageNum <= currentPage + 1)
-                          ) {
-                            return (
-                              <button
-                                key={i}
-                                onClick={() => paginate(pageNum)}
-                                className={`px-4 py-2 rounded-lg transition-colors ${currentPage === pageNum
-                                    ? "bg-green-600 text-white"
-                                    : "border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                  }`}
-                              >
-                                {pageNum}
-                              </button>
-                            );
-                          } else if (
-                            pageNum === currentPage - 2 ||
-                            pageNum === currentPage + 2
-                          ) {
-                            return (
-                              <span key={i} className="px-2">
-                                ...
-                              </span>
-                            );
-                          }
-                          return null;
-                        })}
-
                         <button
-                          onClick={() => paginate(currentPage + 1)}
-                          disabled={currentPage === totalPages}
-                          className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg 
-                                   text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 
-                                   disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          onClick={() => handleDelete(plant._id, plant.name, plant.images)}
+                          className="p-3 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl hover:bg-red-100 dark:hover:bg-red-900/50 transition-all relative"
+                          title="Delete"
+                          disabled={deleteLoading === plant._id}
                         >
-                          Next
+                          {deleteLoading === plant._id ? (
+                            <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            '🗑️'
+                          )}
                         </button>
                       </div>
                     </div>
                   </div>
-                )}
-              </>
-            )}
-          </div>
+                ))}
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="mt-6 flex items-center justify-between">
+                  <button
+                    onClick={() => paginate(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    {currentPage} / {totalPages}
+                  </span>
+                  <button
+                    onClick={() => paginate(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </>
