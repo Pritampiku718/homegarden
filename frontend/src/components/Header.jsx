@@ -55,11 +55,11 @@ const Header = () => {
           }`}
       >
         <nav className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            {/* Logo with proper spacing - pushed to left */}
+          <div className="flex items-center justify-between md:grid md:grid-cols-3 md:gap-4">
+            {/* Logo - Left aligned on desktop, same as mobile */}
             <Link
               to="/"
-              className="flex items-center space-x-2 group mr-8 lg:mr-12"
+              className="flex items-center space-x-2 group justify-self-start"
               onClick={() => setIsMenuOpen(false)}
             >
               <span className="text-2xl sm:text-3xl transform group-hover:rotate-12 transition-transform duration-300">
@@ -73,13 +73,13 @@ const Header = () => {
               </span>
             </Link>
 
-            {/* Desktop Navigation - Centered with flex-1 */}
-            <div className="hidden md:flex items-center justify-center flex-1 space-x-1 lg:space-x-3 xl:space-x-4">
+            {/* Desktop Navigation - Perfectly Centered */}
+            <div className="hidden md:flex items-center justify-center space-x-1 lg:space-x-2 xl:space-x-3">
               {navLinks.map((link) => (
                 <Link
                   key={link.key}
                   to={link.to}
-                  className={`relative px-3 lg:px-4 py-2 rounded-lg transition-all duration-300 group whitespace-nowrap ${activeLink === link.key
+                  className={`relative px-2 lg:px-3 xl:px-4 py-2 rounded-lg transition-all duration-300 group whitespace-nowrap ${activeLink === link.key
                       ? scrolled
                         ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20'
                         : 'text-white bg-white/20'
@@ -88,8 +88,8 @@ const Header = () => {
                         : 'text-white/90 hover:text-white hover:bg-white/10'
                     }`}
                 >
-                  <span className="flex items-center space-x-2">
-                    <span className="text-lg">{link.icon}</span>
+                  <span className="flex items-center space-x-1 lg:space-x-2">
+                    <span className="text-base lg:text-lg">{link.icon}</span>
                     <span className="font-medium text-sm lg:text-base">{link.label}</span>
                   </span>
                   {/* Active Indicator */}
@@ -104,7 +104,7 @@ const Header = () => {
             </div>
 
             {/* Right Section - Admin and Theme Toggle */}
-            <div className="hidden md:flex items-center space-x-2 lg:space-x-3 ml-4 lg:ml-8">
+            <div className="hidden md:flex items-center justify-end space-x-2 lg:space-x-3">
               {/* Admin Section */}
               {isAuthenticated ? (
                 <div className="flex items-center space-x-2 lg:space-x-3">
@@ -153,20 +153,20 @@ const Header = () => {
               ) : (
                 <Link
                   to="/admin/login"
-                  className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 transform hover:scale-105 whitespace-nowrap ${scrolled
+                  className={`px-3 lg:px-4 py-2 rounded-lg font-medium transition-all duration-300 transform hover:scale-105 whitespace-nowrap ${scrolled
                       ? 'bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl'
                       : 'bg-white text-green-700 hover:bg-green-50 shadow-lg hover:shadow-xl'
                     }`}
                 >
-                  <span className="flex items-center space-x-2">
-                    <span className="text-lg">🔐</span>
-                    <span className="hidden lg:inline">Admin Login</span>
+                  <span className="flex items-center space-x-1 lg:space-x-2">
+                    <span className="text-base lg:text-lg">🔐</span>
+                    <span className="text-sm lg:text-base">Admin</span>
                   </span>
                 </Link>
               )}
 
               {/* Theme Toggle */}
-              <div className={`ml-1 lg:ml-2 ${scrolled ? 'text-gray-700 dark:text-gray-300' : 'text-white'}`}>
+              <div className={`ml-1 ${scrolled ? 'text-gray-700 dark:text-gray-300' : 'text-white'}`}>
                 <ThemeToggle />
               </div>
             </div>
