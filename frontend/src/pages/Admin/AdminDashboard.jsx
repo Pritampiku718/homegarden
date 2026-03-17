@@ -247,39 +247,6 @@ const AdminDashboard = () => {
         </div>
 
         <div className="container mx-auto px-4 -mt-6 md:-mt-8">
-          {/* Stats Cards - Grid layout on all screens (no horizontal scroll) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {statCards.map((stat, index) => (
-              <Link
-                key={index}
-                to={stat.link}
-                className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-5 hover:shadow-2xl transition-all transform hover:-translate-y-1 group"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className={`w-12 h-12 ${stat.bgLight} ${stat.bgDark} rounded-xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform`}>
-                    {stat.icon}
-                  </div>
-                  {loading ? (
-                    <div className="w-10 h-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
-                  ) : (
-                    <span className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {stat.value}
-                    </span>
-                  )}
-                </div>
-                <p className={`text-sm font-medium ${stat.textLight} ${stat.textDark}`}>
-                  {stat.label}
-                </p>
-                <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <span>Click to manage</span>
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              </Link>
-            ))}
-          </div>
-
           {/* Quick Actions Section */}
           <div className="mt-8">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
