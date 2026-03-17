@@ -2,11 +2,11 @@ import React, { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import toast from "react-hot-toast";
 import api from "../../services/api";
-import { uploadImage } from "../../services/cloudinary";
+import { uploadImage, deleteImage, extractPublicIdFromUrl } from "../../services/cloudinary";
 
-const ManageSubCategories = () => {
-  const [subCategories, setSubCategories] = useState([]);
-  const [filteredSubCategories, setFilteredSubCategories] = useState([]);
+const ManageVariety = () => {
+  const [varieties, setVarieties] = useState([]);
+  const [filteredVarieties, setFilteredVarieties] = useState([]);
   const [sections, setSections] = useState([]);
   const [categories, setCategories] = useState([]);
   const [filteredCategories, setFilteredCategories] = useState([]);
@@ -25,6 +25,7 @@ const ManageSubCategories = () => {
   const [editingId, setEditingId] = useState(null);
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState("");
+  const [oldImagePublicId, setOldImagePublicId] = useState(null);
 
   // Filter, search & pagination state
   const [searchTerm, setSearchTerm] = useState("");
@@ -54,25 +55,25 @@ const ManageSubCategories = () => {
   }, [formData.section, categories]);
 
   useEffect(() => {
-    let result = [...subCategories];
+    let result = [...varieties];
 
     // Filter by section
     if (filterSection !== "all") {
-      result = result.filter((sub) => sub.section?._id === filterSection);
+      result = result.filter((variety) => variety.section?._id === filterSection);
     }
 
     // Filter by category
     if (filterCategory !== "all") {
-      result = result.filter((sub) => sub.category?._id === filterCategory);
+      result = result.filter((variety) => variety.category?._id === filterCategory);
     }
 
     // Apply search
     if (searchTerm) {
       result = result.filter(
-        (sub) =>
-          sub.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (sub.description &&
-            sub.description.toLowerCase().includes(searchTerm.toLowerCase())),
+        (variety) =>
+          variety.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (variety.description &&
+            variety.description.toLowerCase().includes(searchTerm.toLowerCase())),
       );
     }
 
@@ -95,10 +96,10 @@ const ManageSubCategories = () => {
       return sortOrder === "asc" ? comparison : -comparison;
     });
 
-    setFilteredSubCategories(result);
+    setFilteredVarieties(result);
     setCurrentPage(1);
   }, [
-    subCategories,
+    varieties,
     searchTerm,
     filterSection,
     filterCategory,
@@ -109,14 +110,14 @@ const ManageSubCategories = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [sectionsRes, categoriesRes, subCategoriesRes] = await Promise.all([
+      const [sectionsRes, categoriesRes, varietiesRes] = await Promise.all([
         api.get("/sections"),
         api.get("/categories"),
-        api.get("/subcategories"),
+        api.get("/subcategories"), // API endpoint remains /subcategories
       ]);
       setSections(sectionsRes.data.data || []);
       setCategories(categoriesRes.data.data || []);
-      setSubCategories(subCategoriesRes.data.data || []);
+      setVarieties(varietiesRes.data.data || []);
     } catch (error) {
       toast.error("Failed to load data");
       console.error(error);
@@ -156,12 +157,16 @@ const ManageSubCategories = () => {
     setSubmitting(true);
     try {
       let imageUrl = formData.image;
+      let newPublicId = null;
 
+      // Upload new image if selected
       if (imageFile) {
-        imageUrl = await uploadImage(imageFile);
+        const uploadResult = await uploadImage(imageFile);
+        imageUrl = uploadResult.url;
+        newPublicId = uploadResult.publicId;
       }
 
-      const subCategoryData = {
+      const varietyData = {
         name: formData.name,
         section: formData.section,
         category: formData.category,
@@ -170,11 +175,25 @@ const ManageSubCategories = () => {
       };
 
       if (editingId) {
-        await api.put(`/subcategories/${editingId}`, subCategoryData);
-        toast.success("Sub-category updated successfully");
+        // Update existing variety
+        await api.put(`/subcategories/${editingId}`, varietyData);
+
+        // Delete old image from Cloudinary if new image was uploaded
+        if (oldImagePublicId && imageFile) {
+          try {
+            await deleteImage(oldImagePublicId);
+            console.log("✅ Old image deleted from Cloudinary");
+          } catch (deleteErr) {
+            console.error("Failed to delete old image:", deleteErr);
+            // Don't block the success message for this
+          }
+        }
+
+        toast.success("Variety updated successfully");
       } else {
-        await api.post("/subcategories", subCategoryData);
-        toast.success("Sub-category created successfully");
+        // Create new variety
+        await api.post("/subcategories", varietyData);
+        toast.success("Variety created successfully");
       }
 
       resetForm();
@@ -187,24 +206,31 @@ const ManageSubCategories = () => {
     }
   };
 
-  const handleEdit = (subCategory) => {
-    setEditingId(subCategory._id);
+  const handleEdit = (variety) => {
+    setEditingId(variety._id);
     setFormData({
-      name: subCategory.name,
-      section: subCategory.section?._id || "",
-      category: subCategory.category?._id || "",
-      image: subCategory.image || "",
-      description: subCategory.description || "",
+      name: variety.name,
+      section: variety.section?._id || "",
+      category: variety.category?._id || "",
+      image: variety.image || "",
+      description: variety.description || "",
     });
-    setImagePreview(subCategory.image || "");
+    setImagePreview(variety.image || "");
+
+    // Store old image public ID for cleanup
+    if (variety.image) {
+      const publicId = extractPublicIdFromUrl(variety.image);
+      setOldImagePublicId(publicId);
+    }
+
     setImageFile(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleDelete = async (id, name) => {
+  const handleDelete = async (id, name, imageUrl) => {
     if (
       !window.confirm(
-        `Are you sure you want to delete "${name}"? This will also delete all plants in this sub-category.`,
+        `Are you sure you want to delete "${name}"? This will also delete all plants in this variety.`,
       )
     ) {
       return;
@@ -212,9 +238,25 @@ const ManageSubCategories = () => {
 
     setDeleteLoading(id);
     try {
+      // Delete image from Cloudinary first if exists
+      if (imageUrl) {
+        const publicId = extractPublicIdFromUrl(imageUrl);
+        if (publicId) {
+          try {
+            await deleteImage(publicId);
+            console.log("✅ Image deleted from Cloudinary");
+          } catch (deleteErr) {
+            console.error("Failed to delete image from Cloudinary:", deleteErr);
+            // Continue with database deletion even if image delete fails
+          }
+        }
+      }
+
+      // Delete from database
       await api.delete(`/subcategories/${id}`);
-      toast.success("Sub-category deleted successfully");
+      toast.success("Variety deleted successfully");
       fetchData();
+
       if (editingId === id) resetForm();
     } catch (error) {
       console.error("Delete error:", error);
@@ -235,6 +277,7 @@ const ManageSubCategories = () => {
     setImageFile(null);
     setImagePreview("");
     setEditingId(null);
+    setOldImagePublicId(null);
   };
 
   const handleCancel = () => {
@@ -244,31 +287,31 @@ const ManageSubCategories = () => {
   // Pagination calculations
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredSubCategories.slice(
+  const currentItems = filteredVarieties.slice(
     indexOfFirstItem,
     indexOfLastItem,
   );
-  const totalPages = Math.ceil(filteredSubCategories.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredVarieties.length / itemsPerPage);
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   return (
     <>
       <Helmet>
-        <title>Manage Sub-Categories - HomeGarden Admin</title>
+        <title>Manage Varieties - HomeGarden Admin</title>
       </Helmet>
 
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
         <div className="container mx-auto px-4 max-w-7xl">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">
-            Manage Sub-Categories
+            Manage Varieties
           </h1>
 
           {/* Form Card */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden mb-8">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                {editingId ? "Edit Sub-Category" : "Add New Sub-Category"}
+                {editingId ? "Edit Variety" : "Add New Variety"}
               </h2>
             </div>
 
@@ -321,16 +364,16 @@ const ManageSubCategories = () => {
                       ))}
                     </select>
                     {!formData.section && (
-                      <p className="text-xs text-red-500 mt-1">
+                      <p className="text-xs text-amber-600 mt-1">
                         Please select a section first
                       </p>
                     )}
                   </div>
 
-                  {/* Sub-Category Name */}
+                  {/* Variety Name */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Sub-Category Name *
+                      Variety Name *
                     </label>
                     <input
                       type="text"
@@ -355,7 +398,7 @@ const ManageSubCategories = () => {
                       value={formData.description}
                       onChange={handleInputChange}
                       rows="3"
-                      placeholder="Brief description of this sub-category"
+                      placeholder="Brief description of this variety"
                       className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
                                focus:ring-2 focus:ring-green-500 focus:border-transparent
                                bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
@@ -367,7 +410,7 @@ const ManageSubCategories = () => {
                   {/* Image Upload */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Sub-Category Image
+                      Variety Image
                     </label>
                     <input
                       type="file"
@@ -407,6 +450,9 @@ const ManageSubCategories = () => {
                         </button>
                       </div>
                     )}
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      Recommended: Square image, at least 300x300px
+                    </p>
                   </div>
 
                   {/* Form Actions */}
@@ -424,9 +470,9 @@ const ManageSubCategories = () => {
                           Saving...
                         </>
                       ) : editingId ? (
-                        "Update Sub-Category"
+                        "Update Variety"
                       ) : (
-                        "Add Sub-Category"
+                        "Add Variety"
                       )}
                     </button>
 
@@ -453,7 +499,7 @@ const ManageSubCategories = () => {
                 {/* Search */}
                 <div className="lg:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Search Sub-Categories
+                    Search Varieties
                   </label>
                   <div className="relative">
                     <input
@@ -533,18 +579,17 @@ const ManageSubCategories = () => {
 
               {/* Results count */}
               <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-                Showing {currentItems.length} of {filteredSubCategories.length}{" "}
-                sub-categories
-                {searchTerm && ` (filtered from ${subCategories.length} total)`}
+                Showing {currentItems.length} of {filteredVarieties.length} varieties
+                {searchTerm && ` (filtered from ${varieties.length} total)`}
               </div>
             </div>
           </div>
 
-          {/* Sub-Categories List */}
+          {/* Varieties List */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Sub-Categories List
+                Varieties List
               </h2>
             </div>
 
@@ -552,31 +597,31 @@ const ManageSubCategories = () => {
               <div className="p-12 text-center">
                 <div className="inline-block w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
                 <p className="mt-4 text-gray-600 dark:text-gray-400">
-                  Loading sub-categories...
+                  Loading varieties...
                 </p>
               </div>
-            ) : filteredSubCategories.length === 0 ? (
+            ) : filteredVarieties.length === 0 ? (
               <div className="p-12 text-center">
                 <div className="text-6xl mb-4">🔖</div>
                 <p className="text-gray-600 dark:text-gray-400">
                   {searchTerm
-                    ? "No sub-categories match your search"
-                    : "No sub-categories found. Create your first sub-category above."}
+                    ? "No varieties match your search"
+                    : "No varieties found. Create your first variety above."}
                 </p>
               </div>
             ) : (
               <>
                 <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {currentItems.map((subCategory) => (
+                  {currentItems.map((variety) => (
                     <div
-                      key={subCategory._id}
+                      key={variety._id}
                       className="p-6 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
                     >
                       <div className="flex items-center space-x-4">
-                        {subCategory.image && (
+                        {variety.image && (
                           <img
-                            src={subCategory.image}
-                            alt={subCategory.name}
+                            src={variety.image}
+                            alt={variety.name}
                             className="w-16 h-16 object-cover rounded-lg"
                           />
                         )}
@@ -584,48 +629,46 @@ const ManageSubCategories = () => {
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 flex-wrap gap-2">
                             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                              {subCategory.name}
+                              {variety.name}
                             </h3>
                             <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs rounded-full">
-                              {subCategory.section?.name}
+                              {variety.section?.name}
                             </span>
                             <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full">
-                              {subCategory.category?.name}
+                              {variety.category?.name}
                             </span>
                           </div>
-                          {subCategory.description && (
+                          {variety.description && (
                             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                              {subCategory.description}
+                              {variety.description}
                             </p>
                           )}
                           <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                            Slug: {subCategory.slug} • Created:{" "}
-                            {new Date(
-                              subCategory.createdAt,
-                            ).toLocaleDateString()}
+                            Slug: {variety.slug} • Created:{" "}
+                            {new Date(variety.createdAt).toLocaleDateString()}
                           </p>
                         </div>
 
                         <div className="flex space-x-2">
                           <button
-                            onClick={() => handleEdit(subCategory)}
+                            onClick={() => handleEdit(variety)}
                             className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 
                                      dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-                            title="Edit sub-category"
-                            disabled={deleteLoading === subCategory._id}
+                            title="Edit variety"
+                            disabled={deleteLoading === variety._id}
                           >
                             ✏️
                           </button>
                           <button
                             onClick={() =>
-                              handleDelete(subCategory._id, subCategory.name)
+                              handleDelete(variety._id, variety.name, variety.image)
                             }
                             className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 
                                      dark:hover:bg-red-900/30 rounded-lg transition-colors relative"
-                            title="Delete sub-category"
-                            disabled={deleteLoading === subCategory._id}
+                            title="Delete variety"
+                            disabled={deleteLoading === variety._id}
                           >
-                            {deleteLoading === subCategory._id ? (
+                            {deleteLoading === variety._id ? (
                               <div className="w-5 h-5 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
                             ) : (
                               "🗑️"
@@ -667,11 +710,10 @@ const ManageSubCategories = () => {
                               <button
                                 key={i}
                                 onClick={() => paginate(pageNum)}
-                                className={`px-4 py-2 rounded-lg transition-colors ${
-                                  currentPage === pageNum
+                                className={`px-4 py-2 rounded-lg transition-colors ${currentPage === pageNum
                                     ? "bg-green-600 text-white"
                                     : "border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                }`}
+                                  }`}
                               >
                                 {pageNum}
                               </button>
@@ -711,4 +753,4 @@ const ManageSubCategories = () => {
   );
 };
 
-export default ManageSubCategories;
+export default ManageVariety;

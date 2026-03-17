@@ -12,28 +12,27 @@ import categoryRoutes from "./routes/categoryRoutes.js";
 import subCategoryRoutes from "./routes/subCategoryRoutes.js";
 import plantRoutes from "./routes/plantRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
+import cloudinaryRoutes from "./routes/cloudinaryRoutes.js"; // Added cloudinary routes
 
 // Initialize express
 const app = express();
 
 // CORS Configuration - PRODUCTION READY
 const allowedOrigins = [
-  "https://homegarden-frontend-phi.vercel.app", // Your Vercel frontend
-  "https://homegarden-frontend.vercel.app", // Alternative Vercel URL
-  "http://localhost:5173", // Local development
-  "http://localhost:3000", // Alternative local port
+  "https://homegarden-frontend-phi.vercel.app",
+  "https://homegarden-frontend.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:3000",
 ];
 
 // Comprehensive CORS middleware
 app.use((req, res, next) => {
   const origin = req.headers.origin;
 
-  // Check if the origin is allowed
   if (allowedOrigins.includes(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
   }
 
-  // Set other CORS headers
   res.setHeader(
     "Access-Control-Allow-Methods",
     "GET, POST, PUT, DELETE, PATCH, OPTIONS",
@@ -43,9 +42,8 @@ app.use((req, res, next) => {
     "Content-Type, Authorization, X-Requested-With",
   );
   res.setHeader("Access-Control-Allow-Credentials", "true");
-  res.setHeader("Access-Control-Max-Age", "86400"); // 24 hours
+  res.setHeader("Access-Control-Max-Age", "86400");
 
-  // Handle preflight requests
   if (req.method === "OPTIONS") {
     return res.sendStatus(200);
   }
@@ -71,6 +69,7 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/subcategories", subCategoryRoutes);
 app.use("/api/plants", plantRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/cloudinary", cloudinaryRoutes); // Added cloudinary routes
 
 // Health check route
 app.get("/health", (req, res) => {
@@ -89,6 +88,7 @@ app.get("/health", (req, res) => {
       subcategories: "/api/subcategories",
       plants: "/api/plants",
       users: "/api/users",
+      cloudinary: "/api/cloudinary", // Added to endpoints
     },
   });
 });
@@ -106,6 +106,7 @@ app.get("/", (req, res) => {
       subcategories: "/api/subcategories",
       plants: "/api/plants",
       users: "/api/users",
+      cloudinary: "/api/cloudinary", // Added to endpoints
       health: "/health",
     },
     cors: {
@@ -268,6 +269,7 @@ const server = app.listen(PORT, () => {
     console.log("   • /api/subcategories");
     console.log("   • /api/plants");
     console.log("   • /api/users");
+    console.log("   • /api/cloudinary"); // Added to production log
     console.log("   • /health");
   }
 });

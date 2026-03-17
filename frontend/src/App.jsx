@@ -9,7 +9,8 @@ import AdminRoute from './components/AdminRoute';
 const Home = lazy(() => import('./pages/Home'));
 const Sections = lazy(() => import('./pages/Sections'));
 const CategoryPage = lazy(() => import('./pages/CategoryPage'));
-const SubCategory = lazy(() => import('./pages/SubCategory'));
+const Variety = lazy(() => import('./pages/Variety'));
+const PlantsPage = lazy(() => import('./pages/PlantsPage'));
 const PlantDetails = lazy(() => import('./pages/PlantDetails'));
 const AllPlants = lazy(() => import('./pages/AllPlants'));
 const Gallery = lazy(() => import('./pages/Gallery'));
@@ -21,7 +22,7 @@ const AdminLogin = lazy(() => import('./pages/Admin/AdminLogin'));
 const AdminDashboard = lazy(() => import('./pages/Admin/AdminDashboard'));
 const ManageSections = lazy(() => import('./pages/Admin/ManageSections'));
 const ManageCategories = lazy(() => import('./pages/Admin/ManageCategories'));
-const ManageSubCategories = lazy(() => import('./pages/Admin/ManageSubCategories'));
+const ManageVariety = lazy(() => import('./pages/Admin/ManageVariety')); // Changed from ManageSubCategories
 const ManagePlants = lazy(() => import('./pages/Admin/ManagePlants'));
 
 // Loading fallback
@@ -47,6 +48,33 @@ function App() {
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#22c55e" />
+        <meta name="robots" content="index, follow" />
+
+        {/* Default Meta Tags */}
+        <title>HomeGarden - Premium Plants for Your Home & Garden</title>
+        <meta name="description" content="Discover luxury plants for your home and garden. Premium quality fruits, flowers, indoor and outdoor plants with expert care support." />
+        <meta name="keywords" content="plants, nursery, garden, indoor plants, outdoor plants, flowers, fruits, premium plants" />
+
+        {/* Open Graph */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://homegarden.com" />
+        <meta property="og:title" content="HomeGarden - Premium Plants for Your Home & Garden" />
+        <meta property="og:description" content="Discover luxury plants for your home and garden. Premium quality plants with expert care support." />
+        <meta property="og:image" content="https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=1200" />
+
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="HomeGarden - Premium Plants for Your Home & Garden" />
+        <meta name="twitter:description" content="Discover luxury plants for your home and garden. Premium quality plants with expert care support." />
+        <meta name="twitter:image" content="https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=1200" />
+
+        {/* Canonical URL */}
+        <link rel="canonical" href="https://homegarden.com" />
+
+        {/* Preconnect to external domains */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://images.unsplash.com" />
       </Helmet>
 
       <Layout>
@@ -55,10 +83,11 @@ function App() {
             {/* Public Routes */}
             <Route path="/" element={<Home />} />
 
-            {/* Category Navigation Routes */}
+            {/* Category Navigation Routes - Hierarchical Structure */}
             <Route path="/categories" element={<Sections />} />
             <Route path="/categories/:sectionSlug" element={<CategoryPage />} />
-            <Route path="/categories/:sectionSlug/:categorySlug" element={<SubCategory />} />
+            <Route path="/categories/:sectionSlug/:categorySlug" element={<Variety />} />
+            <Route path="/categories/:sectionSlug/:categorySlug/all" element={<PlantsPage />} />
             <Route path="/categories/:sectionSlug/:categorySlug/:plantSlug" element={<PlantDetails />} />
 
             {/* Other Public Routes */}
@@ -66,15 +95,50 @@ function App() {
             <Route path="/gallery" element={<Gallery />} />
             <Route path="/contact" element={<Contact />} />
 
-            {/* Admin Routes */}
+            {/* Admin Routes - Protected */}
             <Route path="/admin/login" element={<AdminLogin />} />
-            <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-            <Route path="/admin/sections" element={<AdminRoute><ManageSections /></AdminRoute>} />
-            <Route path="/admin/categories" element={<AdminRoute><ManageCategories /></AdminRoute>} />
-            <Route path="/admin/subcategories" element={<AdminRoute><ManageSubCategories /></AdminRoute>} />
-            <Route path="/admin/plants" element={<AdminRoute><ManagePlants /></AdminRoute>} />
+            <Route
+              path="/admin"
+              element={
+                <AdminRoute>
+                  <AdminDashboard />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/sections"
+              element={
+                <AdminRoute>
+                  <ManageSections />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/categories"
+              element={
+                <AdminRoute>
+                  <ManageCategories />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/varieties"
+              element={
+                <AdminRoute>
+                  <ManageVariety /> {/* Updated component name */}
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/plants"
+              element={
+                <AdminRoute>
+                  <ManagePlants />
+                </AdminRoute>
+              }
+            />
 
-            {/* 404 Route */}
+            {/* 404 Route - Must be last */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

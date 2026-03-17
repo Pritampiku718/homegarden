@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import toast from "react-hot-toast";
 import api from "../../services/api";
-import { uploadImage } from "../../services/cloudinary";
+import { uploadImage, deleteImage, extractPublicIdFromUrl } from "../../services/cloudinary";
 
 const ManageCategories = () => {
   const [categories, setCategories] = useState([]);
@@ -22,6 +22,7 @@ const ManageCategories = () => {
   const [editingId, setEditingId] = useState(null);
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState("");
+  const [oldImagePublicId, setOldImagePublicId] = useState(null);
 
   // Filter, search & pagination state
   const [searchTerm, setSearchTerm] = useState("");
@@ -120,9 +121,13 @@ const ManageCategories = () => {
     setSubmitting(true);
     try {
       let imageUrl = formData.image;
+      let newPublicId = null;
 
+      // Upload new image if selected
       if (imageFile) {
-        imageUrl = await uploadImage(imageFile);
+        const uploadResult = await uploadImage(imageFile);
+        imageUrl = uploadResult.url;
+        newPublicId = uploadResult.publicId;
       }
 
       const categoryData = {
@@ -133,9 +138,23 @@ const ManageCategories = () => {
       };
 
       if (editingId) {
+        // Update existing category
         await api.put(`/categories/${editingId}`, categoryData);
+
+        // Delete old image from Cloudinary if new image was uploaded
+        if (oldImagePublicId && imageFile) {
+          try {
+            await deleteImage(oldImagePublicId);
+            console.log("✅ Old image deleted from Cloudinary");
+          } catch (deleteErr) {
+            console.error("Failed to delete old image:", deleteErr);
+            // Don't block the success message for this
+          }
+        }
+
         toast.success("Category updated successfully");
       } else {
+        // Create new category
         await api.post("/categories", categoryData);
         toast.success("Category created successfully");
       }
@@ -159,11 +178,18 @@ const ManageCategories = () => {
       description: category.description || "",
     });
     setImagePreview(category.image || "");
+
+    // Store old image public ID for cleanup
+    if (category.image) {
+      const publicId = extractPublicIdFromUrl(category.image);
+      setOldImagePublicId(publicId);
+    }
+
     setImageFile(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleDelete = async (id, name) => {
+  const handleDelete = async (id, name, imageUrl) => {
     if (
       !window.confirm(
         `Are you sure you want to delete "${name}"? This will also delete all plants in this category.`,
@@ -174,9 +200,25 @@ const ManageCategories = () => {
 
     setDeleteLoading(id);
     try {
+      // Delete image from Cloudinary first if exists
+      if (imageUrl) {
+        const publicId = extractPublicIdFromUrl(imageUrl);
+        if (publicId) {
+          try {
+            await deleteImage(publicId);
+            console.log("✅ Image deleted from Cloudinary");
+          } catch (deleteErr) {
+            console.error("Failed to delete image from Cloudinary:", deleteErr);
+            // Continue with database deletion even if image delete fails
+          }
+        }
+      }
+
+      // Delete from database
       await api.delete(`/categories/${id}`);
       toast.success("Category deleted successfully");
       fetchData();
+
       if (editingId === id) resetForm();
     } catch (error) {
       console.error("Delete error:", error);
@@ -191,6 +233,7 @@ const ManageCategories = () => {
     setImageFile(null);
     setImagePreview("");
     setEditingId(null);
+    setOldImagePublicId(null);
   };
 
   const handleCancel = () => {
@@ -334,6 +377,9 @@ const ManageCategories = () => {
                         </button>
                       </div>
                     )}
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      Recommended: Square image, at least 300x300px
+                    </p>
                   </div>
 
                   {/* Form Actions */}
@@ -530,7 +576,7 @@ const ManageCategories = () => {
                           </button>
                           <button
                             onClick={() =>
-                              handleDelete(category._id, category.name)
+                              handleDelete(category._id, category.name, category.image)
                             }
                             className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 
                                      dark:hover:bg-red-900/30 rounded-lg transition-colors relative"
@@ -579,11 +625,10 @@ const ManageCategories = () => {
                               <button
                                 key={i}
                                 onClick={() => paginate(pageNum)}
-                                className={`px-4 py-2 rounded-lg transition-colors ${
-                                  currentPage === pageNum
+                                className={`px-4 py-2 rounded-lg transition-colors ${currentPage === pageNum
                                     ? "bg-green-600 text-white"
                                     : "border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                }`}
+                                  }`}
                               >
                                 {pageNum}
                               </button>

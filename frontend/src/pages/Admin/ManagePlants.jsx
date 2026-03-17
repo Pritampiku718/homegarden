@@ -2,16 +2,16 @@ import React, { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import toast from "react-hot-toast";
 import api from "../../services/api";
-import { uploadImage } from "../../services/cloudinary";
+import { uploadImage, deleteImage, extractPublicIdFromUrl } from "../../services/cloudinary";
 
 const ManagePlants = () => {
   const [plants, setPlants] = useState([]);
   const [filteredPlants, setFilteredPlants] = useState([]);
   const [sections, setSections] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [subCategories, setSubCategories] = useState([]);
+  const [varieties, setVarieties] = useState([]); // Renamed from subCategories
   const [filteredCategories, setFilteredCategories] = useState([]);
-  const [filteredSubCategories, setFilteredSubCategories] = useState([]);
+  const [filteredVarieties, setFilteredVarieties] = useState([]); // Renamed from filteredSubCategories
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(null);
@@ -23,19 +23,20 @@ const ManagePlants = () => {
     description: "",
     section: "",
     category: "",
-    subCategory: "",
-    image: "",
+    variety: "", // Renamed from subCategory
+    images: [], // Changed from single image to array
     inStock: true,
   });
   const [editingId, setEditingId] = useState(null);
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState("");
+  const [imageFiles, setImageFiles] = useState([]); // Changed from single file to array
+  const [imagePreviews, setImagePreviews] = useState([]); // Changed from single preview to array
+  const [oldImagePublicIds, setOldImagePublicIds] = useState([]); // Store old image public IDs for cleanup
 
   // Filter, search & pagination state
   const [searchTerm, setSearchTerm] = useState("");
   const [filterSection, setFilterSection] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
-  const [filterSubCategory, setFilterSubCategory] = useState("all");
+  const [filterVariety, setFilterVariety] = useState("all"); // Renamed from filterSubCategory
   const [filterPriceMin, setFilterPriceMin] = useState("");
   const [filterPriceMax, setFilterPriceMax] = useState("");
   const [filterInStock, setFilterInStock] = useState(false);
@@ -58,31 +59,31 @@ const ManagePlants = () => {
 
       // Reset category if current selection not in filtered
       if (!filtered.some((c) => c._id === formData.category)) {
-        setFormData((prev) => ({ ...prev, category: "", subCategory: "" }));
+        setFormData((prev) => ({ ...prev, category: "", variety: "" }));
       }
     } else {
       setFilteredCategories([]);
-      setFormData((prev) => ({ ...prev, category: "", subCategory: "" }));
+      setFormData((prev) => ({ ...prev, category: "", variety: "" }));
     }
   }, [formData.section, categories]);
 
-  // Update subcategories when category changes
+  // Update varieties when category changes
   useEffect(() => {
     if (formData.category) {
-      const filtered = subCategories.filter(
-        (s) => s.category?._id === formData.category,
+      const filtered = varieties.filter(
+        (v) => v.category?._id === formData.category,
       );
-      setFilteredSubCategories(filtered);
+      setFilteredVarieties(filtered);
 
-      // Reset subCategory if current selection not in filtered
-      if (!filtered.some((s) => s._id === formData.subCategory)) {
-        setFormData((prev) => ({ ...prev, subCategory: "" }));
+      // Reset variety if current selection not in filtered
+      if (!filtered.some((v) => v._id === formData.variety)) {
+        setFormData((prev) => ({ ...prev, variety: "" }));
       }
     } else {
-      setFilteredSubCategories([]);
-      setFormData((prev) => ({ ...prev, subCategory: "" }));
+      setFilteredVarieties([]);
+      setFormData((prev) => ({ ...prev, variety: "" }));
     }
-  }, [formData.category, subCategories]);
+  }, [formData.category, varieties]);
 
   // Filter and sort plants
   useEffect(() => {
@@ -98,10 +99,10 @@ const ManagePlants = () => {
       result = result.filter((plant) => plant.category?._id === filterCategory);
     }
 
-    // Filter by subCategory
-    if (filterSubCategory !== "all") {
+    // Filter by variety
+    if (filterVariety !== "all") {
       result = result.filter(
-        (plant) => plant.subCategory?._id === filterSubCategory,
+        (plant) => plant.variety?._id === filterVariety, // Changed from subCategory to variety
       );
     }
 
@@ -147,9 +148,9 @@ const ManagePlants = () => {
         comparison = (a.category?.name || "").localeCompare(
           b.category?.name || "",
         );
-      } else if (sortBy === "subCategory") {
-        comparison = (a.subCategory?.name || "").localeCompare(
-          b.subCategory?.name || "",
+      } else if (sortBy === "variety") { // Changed from subCategory to variety
+        comparison = (a.variety?.name || "").localeCompare(
+          b.variety?.name || "",
         );
       } else if (sortBy === "createdAt") {
         comparison = new Date(a.createdAt) - new Date(b.createdAt);
@@ -164,7 +165,7 @@ const ManagePlants = () => {
     searchTerm,
     filterSection,
     filterCategory,
-    filterSubCategory,
+    filterVariety,
     filterPriceMin,
     filterPriceMax,
     filterInStock,
@@ -175,16 +176,16 @@ const ManagePlants = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [sectionsRes, categoriesRes, subCategoriesRes, plantsRes] =
+      const [sectionsRes, categoriesRes, varietiesRes, plantsRes] =
         await Promise.all([
           api.get("/sections"),
           api.get("/categories"),
-          api.get("/subcategories"),
+          api.get("/subcategories"), // API endpoint remains /subcategories
           api.get("/plants"),
         ]);
       setSections(sectionsRes.data.data || []);
       setCategories(categoriesRes.data.data || []);
-      setSubCategories(subCategoriesRes.data.data || []);
+      setVarieties(varietiesRes.data.data || []);
       setPlants(plantsRes.data.data || []);
     } catch (error) {
       toast.error("Failed to load data");
@@ -203,18 +204,30 @@ const ManagePlants = () => {
   };
 
   const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setImageFile(file);
-      setImagePreview(URL.createObjectURL(file));
-      setFormData((prev) => ({ ...prev, image: "" }));
+    const files = Array.from(e.target.files);
+    if (files.length > 0) {
+      // Limit to 3 images
+      const newFiles = [...imageFiles, ...files].slice(0, 3);
+      setImageFiles(newFiles);
+
+      // Create previews
+      const newPreviews = newFiles.map(file => URL.createObjectURL(file));
+      setImagePreviews(newPreviews);
+
+      // Clear any existing image URLs in form data
+      setFormData((prev) => ({ ...prev, images: [] }));
     }
   };
 
-  const handleRemoveImage = () => {
-    setImageFile(null);
-    setImagePreview("");
-    setFormData((prev) => ({ ...prev, image: "" }));
+  const handleRemoveImage = (index) => {
+    const newFiles = imageFiles.filter((_, i) => i !== index);
+    const newPreviews = imagePreviews.filter((_, i) => i !== index);
+
+    setImageFiles(newFiles);
+    setImagePreviews(newPreviews);
+
+    // Revoke object URL to avoid memory leaks
+    URL.revokeObjectURL(imagePreviews[index]);
   };
 
   const handleSubmit = async (e) => {
@@ -225,7 +238,8 @@ const ManagePlants = () => {
       !formData.price ||
       !formData.description ||
       !formData.section ||
-      !formData.category
+      !formData.category ||
+      !formData.variety // Variety is now required
     ) {
       toast.error("Please fill all required fields");
       return;
@@ -233,14 +247,26 @@ const ManagePlants = () => {
 
     setSubmitting(true);
     try {
-      let imageUrl = formData.image;
+      let imageUrls = [...(formData.images || [])];
 
-      if (imageFile) {
-        imageUrl = await uploadImage(imageFile);
-      } else if (!imageUrl && !editingId) {
-        toast.error("Please select an image");
-        setSubmitting(false);
-        return;
+      // Upload new images if selected
+      if (imageFiles.length > 0) {
+        const uploadPromises = imageFiles.map(file => uploadImage(file));
+        const uploadResults = await Promise.all(uploadPromises);
+
+        // Extract URLs from upload results
+        const newUrls = uploadResults.map(result => result.url);
+        imageUrls = [...imageUrls, ...newUrls];
+
+        // Store old image public IDs for deletion if editing
+        if (editingId && oldImagePublicIds.length > 0) {
+          try {
+            await Promise.all(oldImagePublicIds.map(id => deleteImage(id)));
+            console.log("✅ Old images deleted from Cloudinary");
+          } catch (deleteErr) {
+            console.error("Failed to delete old images:", deleteErr);
+          }
+        }
       }
 
       const plantData = {
@@ -249,8 +275,8 @@ const ManagePlants = () => {
         description: formData.description,
         section: formData.section,
         category: formData.category,
-        subCategory: formData.subCategory || null,
-        image: imageUrl,
+        variety: formData.variety, // Changed from subCategory to variety
+        images: imageUrls, // Changed from single image to array
         inStock: formData.inStock,
       };
 
@@ -280,25 +306,54 @@ const ManagePlants = () => {
       description: plant.description,
       section: plant.section?._id || "",
       category: plant.category?._id || "",
-      subCategory: plant.subCategory?._id || "",
-      image: plant.image || "",
+      variety: plant.variety?._id || "", // Changed from subCategory to variety
+      images: plant.images || [],
       inStock: plant.inStock !== false,
     });
-    setImagePreview(plant.image || "");
-    setImageFile(null);
+
+    // Set image previews from existing images
+    setImagePreviews(plant.images || []);
+
+    // Store old image public IDs for cleanup
+    if (plant.images && plant.images.length > 0) {
+      const publicIds = plant.images
+        .map(img => extractPublicIdFromUrl(img))
+        .filter(id => id);
+      setOldImagePublicIds(publicIds);
+    }
+
+    setImageFiles([]);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleDelete = async (id, name) => {
+  const handleDelete = async (id, name, images) => {
     if (!window.confirm(`Are you sure you want to delete "${name}"?`)) {
       return;
     }
 
     setDeleteLoading(id);
     try {
+      // Delete images from Cloudinary first if they exist
+      if (images && images.length > 0) {
+        const publicIds = images
+          .map(img => extractPublicIdFromUrl(img))
+          .filter(id => id);
+
+        if (publicIds.length > 0) {
+          try {
+            await Promise.all(publicIds.map(id => deleteImage(id)));
+            console.log("✅ Images deleted from Cloudinary");
+          } catch (deleteErr) {
+            console.error("Failed to delete images from Cloudinary:", deleteErr);
+          }
+        }
+      }
+
+      // Delete from database
       await api.delete(`/plants/${id}`);
       toast.success("Plant deleted successfully");
       fetchData();
+
       if (editingId === id) resetForm();
     } catch (error) {
       console.error("Delete error:", error);
@@ -315,13 +370,14 @@ const ManagePlants = () => {
       description: "",
       section: "",
       category: "",
-      subCategory: "",
-      image: "",
+      variety: "",
+      images: [],
       inStock: true,
     });
-    setImageFile(null);
-    setImagePreview("");
+    setImageFiles([]);
+    setImagePreviews([]);
     setEditingId(null);
+    setOldImagePublicIds([]);
   };
 
   const handleCancel = () => {
@@ -331,7 +387,7 @@ const ManagePlants = () => {
   const clearAllFilters = () => {
     setFilterSection("all");
     setFilterCategory("all");
-    setFilterSubCategory("all");
+    setFilterVariety("all");
     setFilterPriceMin("");
     setFilterPriceMax("");
     setFilterInStock(false);
@@ -459,24 +515,25 @@ const ManagePlants = () => {
                     )}
                   </div>
 
-                  {/* SubCategory */}
+                  {/* Variety - Now Required */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Sub-Category (Optional)
+                      Variety *
                     </label>
                     <select
-                      name="subCategory"
-                      value={formData.subCategory}
+                      name="variety"
+                      value={formData.variety}
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
                                focus:ring-2 focus:ring-green-500 focus:border-transparent
                                bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      required
                       disabled={!formData.category}
                     >
-                      <option value="">None (No sub-category)</option>
-                      {filteredSubCategories.map((subCat) => (
-                        <option key={subCat._id} value={subCat._id}>
-                          {subCat.name}
+                      <option value="">Select a variety</option>
+                      {filteredVarieties.map((variety) => (
+                        <option key={variety._id} value={variety._id}>
+                          {variety.name}
                         </option>
                       ))}
                     </select>
@@ -498,7 +555,7 @@ const ManagePlants = () => {
                       name="description"
                       value={formData.description}
                       onChange={handleInputChange}
-                      rows="4"
+                      rows="3"
                       className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
                                focus:ring-2 focus:ring-green-500 focus:border-transparent
                                bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
@@ -524,48 +581,62 @@ const ManagePlants = () => {
                     </label>
                   </div>
 
-                  {/* Image Upload */}
+                  {/* Multiple Image Upload */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Plant Image *
+                      Plant Images * (Max 3 photos)
                     </label>
                     <input
                       type="file"
                       accept="image/*"
                       onChange={handleImageChange}
+                      multiple
                       className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
                                bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      required={!editingId && !imagePreview}
+                      required={!editingId && imagePreviews.length === 0}
                     />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      You can select up to 3 images. First image will be used as primary.
+                    </p>
 
-                    {imagePreview && (
-                      <div className="mt-4 relative inline-block">
-                        <img
-                          src={imagePreview}
-                          alt="Preview"
-                          className="w-32 h-32 object-cover rounded-lg border-2 border-green-500"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleRemoveImage}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 
-                                   hover:bg-red-600 transition-colors shadow-lg"
-                          title="Remove image"
-                        >
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M6 18L18 6M6 6l12 12"
+                    {/* Image Previews */}
+                    {imagePreviews.length > 0 && (
+                      <div className="mt-4 grid grid-cols-3 gap-2">
+                        {imagePreviews.map((preview, index) => (
+                          <div key={index} className="relative">
+                            <img
+                              src={preview}
+                              alt={`Preview ${index + 1}`}
+                              className="w-full h-24 object-cover rounded-lg border-2 border-green-500"
                             />
-                          </svg>
-                        </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveImage(index)}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 
+                                       hover:bg-red-600 transition-colors shadow-lg"
+                              title="Remove image"
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
+                              </svg>
+                            </button>
+                            {index === 0 && (
+                              <span className="absolute bottom-1 left-1 bg-green-600 text-white text-xs px-1 rounded">
+                                Primary
+                              </span>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -652,7 +723,7 @@ const ManagePlants = () => {
                     onChange={(e) => {
                       setFilterSection(e.target.value);
                       setFilterCategory("all");
-                      setFilterSubCategory("all");
+                      setFilterVariety("all");
                     }}
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
                              focus:ring-2 focus:ring-green-500 focus:border-transparent
@@ -676,7 +747,7 @@ const ManagePlants = () => {
                     value={filterCategory}
                     onChange={(e) => {
                       setFilterCategory(e.target.value);
-                      setFilterSubCategory("all");
+                      setFilterVariety("all");
                     }}
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
                              focus:ring-2 focus:ring-green-500 focus:border-transparent
@@ -695,26 +766,26 @@ const ManagePlants = () => {
                   </select>
                 </div>
 
-                {/* Filter by SubCategory */}
+                {/* Filter by Variety */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Sub-Category
+                    Variety
                   </label>
                   <select
-                    value={filterSubCategory}
-                    onChange={(e) => setFilterSubCategory(e.target.value)}
+                    value={filterVariety}
+                    onChange={(e) => setFilterVariety(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
                              focus:ring-2 focus:ring-green-500 focus:border-transparent
                              bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     disabled={filterCategory === "all"}
                   >
-                    <option value="all">All Sub-Categories</option>
+                    <option value="all">All Varieties</option>
                     {filterCategory !== "all" &&
-                      subCategories
-                        .filter((sub) => sub.category?._id === filterCategory)
-                        .map((subCat) => (
-                          <option key={subCat._id} value={subCat._id}>
-                            {subCat.name}
+                      varieties
+                        .filter((v) => v.category?._id === filterCategory)
+                        .map((variety) => (
+                          <option key={variety._id} value={variety._id}>
+                            {variety.name}
                           </option>
                         ))}
                   </select>
@@ -782,7 +853,7 @@ const ManagePlants = () => {
                     <option value="price">Price</option>
                     <option value="section">Section</option>
                     <option value="category">Category</option>
-                    <option value="subCategory">Sub-Category</option>
+                    <option value="variety">Variety</option>
                     <option value="createdAt">Date Added</option>
                   </select>
                 </div>
@@ -815,17 +886,17 @@ const ManagePlants = () => {
 
                 {(filterSection !== "all" ||
                   filterCategory !== "all" ||
-                  filterSubCategory !== "all" ||
+                  filterVariety !== "all" ||
                   filterPriceMin ||
                   filterPriceMax ||
                   filterInStock) && (
-                  <button
-                    onClick={clearAllFilters}
-                    className="text-sm text-red-600 hover:text-red-700 font-medium"
-                  >
-                    Clear All Filters
-                  </button>
-                )}
+                    <button
+                      onClick={clearAllFilters}
+                      className="text-sm text-red-600 hover:text-red-700 font-medium"
+                    >
+                      Clear All Filters
+                    </button>
+                  )}
               </div>
             </div>
           </div>
@@ -863,8 +934,9 @@ const ManagePlants = () => {
                       className="p-6 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
                     >
                       <div className="flex items-center space-x-4">
+                        {/* Show first image as thumbnail */}
                         <img
-                          src={plant.image}
+                          src={plant.images?.[0] || plant.image}
                           alt={plant.name}
                           className="w-20 h-20 object-cover rounded-lg"
                         />
@@ -880,9 +952,9 @@ const ManagePlants = () => {
                             <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs rounded-full">
                               {plant.category?.name}
                             </span>
-                            {plant.subCategory && (
+                            {plant.variety && (
                               <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-xs rounded-full">
-                                {plant.subCategory.name}
+                                {plant.variety.name}
                               </span>
                             )}
                             {!plant.inStock && (
@@ -898,9 +970,13 @@ const ManagePlants = () => {
                             <span className="text-lg font-bold text-green-600 dark:text-green-400">
                               ₹{plant.price}
                             </span>
+                            {plant.images && (
+                              <span className="text-xs text-gray-500 dark:text-gray-500">
+                                {plant.images.length} {plant.images.length === 1 ? 'photo' : 'photos'}
+                              </span>
+                            )}
                             <span className="text-xs text-gray-500 dark:text-gray-500">
-                              Added:{" "}
-                              {new Date(plant.createdAt).toLocaleDateString()}
+                              Added: {new Date(plant.createdAt).toLocaleDateString()}
                             </span>
                           </div>
                         </div>
@@ -916,7 +992,7 @@ const ManagePlants = () => {
                             ✏️
                           </button>
                           <button
-                            onClick={() => handleDelete(plant._id, plant.name)}
+                            onClick={() => handleDelete(plant._id, plant.name, plant.images)}
                             className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 
                                      dark:hover:bg-red-900/30 rounded-lg transition-colors relative"
                             title="Delete plant"
@@ -964,11 +1040,10 @@ const ManagePlants = () => {
                               <button
                                 key={i}
                                 onClick={() => paginate(pageNum)}
-                                className={`px-4 py-2 rounded-lg transition-colors ${
-                                  currentPage === pageNum
+                                className={`px-4 py-2 rounded-lg transition-colors ${currentPage === pageNum
                                     ? "bg-green-600 text-white"
                                     : "border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                }`}
+                                  }`}
                               >
                                 {pageNum}
                               </button>
