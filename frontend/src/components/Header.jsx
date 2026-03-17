@@ -17,7 +17,10 @@ const Header = () => {
   return (
     <header className="bg-gradient-to-r from-green-700 to-green-600 dark:from-green-800 dark:to-green-700 text-white shadow-lg sticky top-0 z-50">
       <nav className="container mx-auto px-4 py-3">
+
+        {/* Top Bar */}
         <div className="flex justify-between items-center">
+
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
             <span className="text-2xl font-bold tracking-tight">🌿 HomeGarden</span>
@@ -31,16 +34,30 @@ const Header = () => {
             <Link to="/gallery" className="hover:text-green-200 transition px-3 py-2 rounded-lg hover:bg-white/10">Gallery</Link>
             <Link to="/contact" className="hover:text-green-200 transition px-3 py-2 rounded-lg hover:bg-white/10">Contact</Link>
 
+            {/* AUTH SECTION */}
             {isAuthenticated ? (
-              <div className="flex items-center space-x-3">
-                <span className="text-sm bg-white/20 px-3 py-1.5 rounded-full">👋 {user?.name}</span>
-                <Link to="/admin" className="hover:text-green-200 transition px-3 py-2 rounded-lg hover:bg-white/10">Dashboard</Link>
-                <button
-                  onClick={handleLogout}
-                  className="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg transition-colors text-sm font-medium"
-                >
-                  Logout
+              <div className="relative group">
+
+                {/* User Button */}
+                <button className="flex items-center space-x-2 bg-white/20 px-3 py-2 rounded-lg hover:bg-white/30 transition">
+                  <span>👋 {user?.name?.split(' ')[0]}</span>
                 </button>
+
+                {/* Dropdown */}
+                <div className="absolute right-0 mt-2 w-44 bg-white text-black rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                  <Link
+                    to="/admin"
+                    className="block px-4 py-2 hover:bg-gray-100"
+                  >
+                    Dashboard
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-500"
+                  >
+                    Logout
+                  </button>
+                </div>
               </div>
             ) : (
               <Link
@@ -50,16 +67,16 @@ const Header = () => {
                 Admin Login
               </Link>
             )}
+
             <ThemeToggle />
           </div>
 
-          {/* Mobile Menu Button */}
+          {/* Mobile Controls */}
           <div className="flex items-center space-x-3 md:hidden">
             <ThemeToggle />
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="p-2 hover:bg-white/10 rounded-lg transition"
-              aria-label="Toggle menu"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 {isMenuOpen ? (
