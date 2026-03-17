@@ -51,33 +51,35 @@ const Header = () => {
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled
             ? 'bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl shadow-lg py-2'
-            : 'bg-gradient-to-r from-green-700 to-green-600 dark:from-green-800 dark:to-green-700 py-3'
+            : 'bg-gradient-to-r from-green-700 to-green-600 dark:from-green-800 dark:to-green-700 py-3 md:py-4'
           }`}
       >
         <nav className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center">
-            {/* Logo with Animation */}
+          <div className="flex items-center justify-between">
+            {/* Logo with proper spacing - pushed to left */}
             <Link
               to="/"
-              className="flex items-center space-x-2 group"
+              className="flex items-center space-x-2 group mr-8 lg:mr-12"
               onClick={() => setIsMenuOpen(false)}
             >
               <span className="text-2xl sm:text-3xl transform group-hover:rotate-12 transition-transform duration-300">
                 🌿
               </span>
-              <span className={`text-xl sm:text-2xl font-bold tracking-tight transition-colors ${scrolled ? 'text-gray-900 dark:text-white' : 'text-white'
-                }`}>
+              <span
+                className={`text-xl sm:text-2xl font-bold tracking-tight transition-colors ${scrolled ? 'text-gray-900 dark:text-white' : 'text-white'
+                  }`}
+              >
                 HomeGarden
               </span>
             </Link>
 
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-1 lg:space-x-2">
+            {/* Desktop Navigation - Centered with flex-1 */}
+            <div className="hidden md:flex items-center justify-center flex-1 space-x-1 lg:space-x-3 xl:space-x-4">
               {navLinks.map((link) => (
                 <Link
                   key={link.key}
                   to={link.to}
-                  className={`relative px-3 lg:px-4 py-2 rounded-lg transition-all duration-300 group ${activeLink === link.key
+                  className={`relative px-3 lg:px-4 py-2 rounded-lg transition-all duration-300 group whitespace-nowrap ${activeLink === link.key
                       ? scrolled
                         ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20'
                         : 'text-white bg-white/20'
@@ -88,26 +90,35 @@ const Header = () => {
                 >
                   <span className="flex items-center space-x-2">
                     <span className="text-lg">{link.icon}</span>
-                    <span className="font-medium">{link.label}</span>
+                    <span className="font-medium text-sm lg:text-base">{link.label}</span>
                   </span>
                   {/* Active Indicator */}
                   {activeLink === link.key && (
-                    <span className={`absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1/2 h-0.5 rounded-full transition-all duration-300 ${scrolled ? 'bg-green-600 dark:bg-green-400' : 'bg-white'
-                      }`} />
+                    <span
+                      className={`absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1/2 h-0.5 rounded-full transition-all duration-300 ${scrolled ? 'bg-green-600 dark:bg-green-400' : 'bg-white'
+                        }`}
+                    />
                   )}
                 </Link>
               ))}
+            </div>
 
+            {/* Right Section - Admin and Theme Toggle */}
+            <div className="hidden md:flex items-center space-x-2 lg:space-x-3 ml-4 lg:ml-8">
               {/* Admin Section */}
               {isAuthenticated ? (
-                <div className="flex items-center space-x-2 ml-2 pl-2 border-l-2 border-white/20">
+                <div className="flex items-center space-x-2 lg:space-x-3">
                   <div className="relative group">
-                    <div className={`flex items-center space-x-2 px-3 py-2 rounded-lg ${scrolled
-                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                        : 'bg-white/20 text-white'
-                      }`}>
+                    <div
+                      className={`flex items-center space-x-2 px-3 py-2 rounded-lg ${scrolled
+                          ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                          : 'bg-white/20 text-white'
+                        }`}
+                    >
                       <span className="text-lg">👋</span>
-                      <span className="font-medium text-sm hidden lg:inline">{user?.name?.split(' ')[0]}</span>
+                      <span className="font-medium text-sm hidden lg:inline">
+                        {user?.name?.split(' ')[0]}
+                      </span>
                     </div>
                   </div>
                   <Link
@@ -142,7 +153,7 @@ const Header = () => {
               ) : (
                 <Link
                   to="/admin/login"
-                  className={`ml-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 transform hover:scale-105 ${scrolled
+                  className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 transform hover:scale-105 whitespace-nowrap ${scrolled
                       ? 'bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl'
                       : 'bg-white text-green-700 hover:bg-green-50 shadow-lg hover:shadow-xl'
                     }`}
@@ -155,7 +166,7 @@ const Header = () => {
               )}
 
               {/* Theme Toggle */}
-              <div className={`ml-2 ${scrolled ? 'text-gray-700 dark:text-gray-300' : 'text-white'}`}>
+              <div className={`ml-1 lg:ml-2 ${scrolled ? 'text-gray-700 dark:text-gray-300' : 'text-white'}`}>
                 <ThemeToggle />
               </div>
             </div>
@@ -187,10 +198,12 @@ const Header = () => {
             className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${isMenuOpen ? 'max-h-96 opacity-100 mt-4' : 'max-h-0 opacity-0'
               }`}
           >
-            <div className={`rounded-2xl overflow-hidden ${scrolled
-                ? 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xl'
-                : 'bg-green-600 dark:bg-green-800'
-              }`}>
+            <div
+              className={`rounded-2xl overflow-hidden ${scrolled
+                  ? 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xl'
+                  : 'bg-green-600 dark:bg-green-800'
+                }`}
+            >
               {navLinks.map((link) => (
                 <Link
                   key={link.key}
@@ -216,14 +229,18 @@ const Header = () => {
               ))}
 
               {/* Divider */}
-              <div className={`h-px my-2 ${scrolled ? 'bg-gray-200 dark:bg-gray-700' : 'bg-white/20'
-                }`} />
+              <div
+                className={`h-px my-2 ${scrolled ? 'bg-gray-200 dark:bg-gray-700' : 'bg-white/20'
+                  }`}
+              />
 
               {/* Mobile Admin Section */}
               {isAuthenticated ? (
                 <>
-                  <div className={`px-4 py-3 ${scrolled ? 'text-gray-600 dark:text-gray-400' : 'text-white/80'
-                    }`}>
+                  <div
+                    className={`px-4 py-3 ${scrolled ? 'text-gray-600 dark:text-gray-400' : 'text-white/80'
+                      }`}
+                  >
                     <span className="text-sm">Logged in as</span>
                     <p className="font-semibold">{user?.name}</p>
                   </div>
