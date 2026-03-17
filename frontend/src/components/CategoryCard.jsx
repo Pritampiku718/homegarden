@@ -35,7 +35,7 @@ const CategoryCard = ({ category }) => {
           {category.description}
         </p>
         <Link
-          to={`/category/${category.slug}`}
+          to={`/categories/${category.slug}`}
           className="inline-flex items-center text-white font-semibold group/link"
         >
           <span className="border-b-2 border-white/50 group-hover/link:border-white pb-1 transition-colors">

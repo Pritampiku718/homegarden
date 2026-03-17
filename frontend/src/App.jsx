@@ -4,6 +4,7 @@ import { Helmet } from 'react-helmet-async';
 import Layout from './components/Layout';
 import LoadingSpinner from './components/LoadingSpinner';
 import AdminRoute from './components/AdminRoute';
+import ScrollToTop from './components/ScrollToTop'; // Import ScrollToTop component
 
 // Public Pages
 const Home = lazy(() => import('./pages/Home'));
@@ -22,7 +23,7 @@ const AdminLogin = lazy(() => import('./pages/Admin/AdminLogin'));
 const AdminDashboard = lazy(() => import('./pages/Admin/AdminDashboard'));
 const ManageSections = lazy(() => import('./pages/Admin/ManageSections'));
 const ManageCategories = lazy(() => import('./pages/Admin/ManageCategories'));
-const ManageVariety = lazy(() => import('./pages/Admin/ManageVariety')); // Changed from ManageSubCategories
+const ManageVariety = lazy(() => import('./pages/Admin/ManageVariety'));
 const ManagePlants = lazy(() => import('./pages/Admin/ManagePlants'));
 
 // Loading fallback
@@ -43,6 +44,9 @@ const PageLoader = () => (
 function App() {
   return (
     <BrowserRouter>
+      {/* ScrollToTop component - ensures page starts at top on navigation */}
+      <ScrollToTop />
+
       <Helmet>
         <html lang="en" />
         <meta charSet="utf-8" />
@@ -125,7 +129,7 @@ function App() {
               path="/admin/varieties"
               element={
                 <AdminRoute>
-                  <ManageVariety /> {/* Updated component name */}
+                  <ManageVariety />
                 </AdminRoute>
               }
             />

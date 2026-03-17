@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import api from '../services/api';
 import PlantCard from '../components/PlantCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
-import BackButton from '../components/BackButton';
-import Breadcrumbs from '../components/Breadcrumbs';
 
 const PlantsPage = () => {
   const { sectionSlug, categorySlug } = useParams();
@@ -25,7 +23,7 @@ const PlantsPage = () => {
   useEffect(() => {
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
-      const filtered = plants.filter(plant => 
+      const filtered = plants.filter(plant =>
         plant.name.toLowerCase().includes(term) ||
         (plant.description && plant.description.toLowerCase().includes(term))
       );
@@ -38,7 +36,7 @@ const PlantsPage = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      
+
       const sectionRes = await api.get(`/sections/slug/${sectionSlug}`);
       const sectionData = sectionRes.data.data?.section || sectionRes.data;
       setSection(sectionData);
@@ -49,7 +47,7 @@ const PlantsPage = () => {
 
       const plantsRes = await api.get(`/plants?category=${categoryData._id}`);
       setPlants(plantsRes.data.data || []);
-      
+
     } catch (err) {
       console.error('Error:', err);
       setError('Failed to load plants');
@@ -62,14 +60,6 @@ const PlantsPage = () => {
   if (error) return <ErrorMessage message={error} retry={fetchData} />;
   if (!category || !section) return <ErrorMessage message="Category not found" />;
 
-  const breadcrumbItems = [
-    { name: 'Home', path: '/' },
-    { name: 'Sections', path: '/categories' },
-    { name: section.name, path: `/categories/${section.slug}` },
-    { name: category.name, path: `/categories/${section.slug}/${category.slug}` },
-    { name: 'All Plants' }
-  ];
-
   return (
     <>
       <Helmet>
@@ -77,9 +67,6 @@ const PlantsPage = () => {
       </Helmet>
 
       <div className="container mx-auto px-4 py-6">
-        <BackButton fallbackPath={`/categories/${section.slug}/${category.slug}`} />
-        <Breadcrumbs items={breadcrumbItems} />
-
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">
           All {category.name} Plants
         </h1>
@@ -104,6 +91,16 @@ const PlantsPage = () => {
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
 
         {filteredPlants.length === 0 ? (

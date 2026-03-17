@@ -4,8 +4,6 @@ import { Helmet } from 'react-helmet-async';
 import api from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
-import BackButton from '../components/BackButton';
-import Breadcrumbs from '../components/Breadcrumbs';
 
 const Sections = () => {
   const [sections, setSections] = useState([]);
@@ -79,11 +77,6 @@ const Sections = () => {
     }
   };
 
-  const breadcrumbItems = [
-    { name: 'Home', path: '/' },
-    { name: 'Sections' }
-  ];
-
   if (loading) return <LoadingSpinner fullPage />;
   if (error) return <ErrorMessage message={error} retry={fetchData} />;
 
@@ -95,9 +88,6 @@ const Sections = () => {
       </Helmet>
 
       <div className="container mx-auto px-4 py-8">
-        <BackButton fallbackPath="/" />
-        <Breadcrumbs items={breadcrumbItems} />
-
         <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2">
           All Sections
         </h1>

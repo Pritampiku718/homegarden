@@ -4,8 +4,6 @@ import { Helmet } from 'react-helmet-async';
 import api from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
-import BackButton from '../components/BackButton';
-import Breadcrumbs from '../components/Breadcrumbs';
 
 const CategoryPage = () => {
   const { sectionSlug } = useParams();
@@ -89,12 +87,6 @@ const CategoryPage = () => {
   if (error) return <ErrorMessage message={error} retry={fetchData} />;
   if (!section) return <ErrorMessage message="Section not found" />;
 
-  const breadcrumbItems = [
-    { name: 'Home', path: '/' },
-    { name: 'Sections', path: '/categories' },
-    { name: section.name }
-  ];
-
   return (
     <>
       <Helmet>
@@ -103,9 +95,6 @@ const CategoryPage = () => {
       </Helmet>
 
       <div className="container mx-auto px-4 py-8">
-        <BackButton fallbackPath="/categories" />
-        <Breadcrumbs items={breadcrumbItems} />
-
         {/* Section Header */}
         <div className="relative rounded-2xl overflow-hidden mb-8 h-48 md:h-64">
           {section.image ? (

@@ -5,8 +5,6 @@ import api from '../services/api';
 import { sendWhatsAppOrder } from '../utils/whatsapp';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
-import BackButton from '../components/BackButton';
-import Breadcrumbs from '../components/Breadcrumbs';
 
 const PlantDetails = () => {
   const { sectionSlug, categorySlug, plantSlug } = useParams();
@@ -24,14 +22,14 @@ const PlantDetails = () => {
     try {
       setLoading(true);
       console.log('Fetching plant with slug:', plantSlug);
-      
+
       const { data } = await api.get(`/plants/slug/${plantSlug}`);
       console.log('Plant data:', data);
-      
+
       // Handle different response structures
       const plantData = data.data?.plant || data.data || data;
       setPlant(plantData);
-      
+
     } catch (err) {
       console.error('Error fetching plant:', err);
       setError(err.response?.data?.message || 'Failed to load plant details');
@@ -48,14 +46,6 @@ const PlantDetails = () => {
   const section = plant.section || {};
   const category = plant.category || {};
 
-  const breadcrumbItems = [
-    { name: 'Home', path: '/' },
-    { name: 'Sections', path: '/categories' },
-    ...(section.name ? [{ name: section.name, path: `/categories/${section.slug}` }] : []),
-    ...(category.name ? [{ name: category.name, path: `/categories/${section?.slug}/${category.slug}` }] : []),
-    { name: plant.name || 'Plant Details' }
-  ];
-
   return (
     <>
       <Helmet>
@@ -64,16 +54,13 @@ const PlantDetails = () => {
       </Helmet>
 
       <div className="container mx-auto px-4 py-6">
-        <BackButton fallbackPath={category?.slug ? `/categories/${section?.slug}/${category.slug}` : '/categories'} />
-        <Breadcrumbs items={breadcrumbItems} />
-
         <div className="grid md:grid-cols-2 gap-6">
           {/* Plant Image */}
           <div className="relative rounded-xl overflow-hidden shadow-md bg-gray-100 dark:bg-gray-800 aspect-square max-h-[400px]">
             {plant.image ? (
-              <img 
-                src={plant.image} 
-                alt={plant.name || 'Plant'} 
+              <img
+                src={plant.image}
+                alt={plant.name || 'Plant'}
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   e.target.src = 'https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=400';
@@ -97,11 +84,11 @@ const PlantDetails = () => {
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
               {plant.name || 'Unnamed Plant'}
             </h1>
-            
+
             {/* Category Tags */}
             <div className="flex flex-wrap items-center gap-2">
               {section?.name && (
-                <Link 
+                <Link
                   to={`/categories/${section.slug}`}
                   className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full hover:bg-green-200 dark:hover:bg-green-900/50 transition"
                 >
@@ -109,7 +96,7 @@ const PlantDetails = () => {
                 </Link>
               )}
               {category?.name && (
-                <Link 
+                <Link
                   to={`/categories/${section?.slug}/${category.slug}`}
                   className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs rounded-full hover:bg-blue-200 dark:hover:bg-blue-900/50 transition"
                 >
@@ -117,14 +104,14 @@ const PlantDetails = () => {
                 </Link>
               )}
             </div>
-            
+
             {/* Price */}
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-bold text-green-600 dark:text-green-400">
                 ₹{plant.price || 0}
               </span>
             </div>
-            
+
             {/* Description */}
             {plant.description && (
               <div className="prose dark:prose-invert max-w-none">
@@ -133,22 +120,21 @@ const PlantDetails = () => {
                 </p>
               </div>
             )}
-            
+
             {/* Action Buttons */}
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => sendWhatsAppOrder(plant.name || 'Plant')}
                 disabled={plant.inStock === false}
-                className={`flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg transition text-sm font-semibold shadow-md hover:shadow-lg flex items-center justify-center gap-2 ${
-                  plant.inStock === false && 'opacity-50 cursor-not-allowed'
-                }`}
+                className={`flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg transition text-sm font-semibold shadow-md hover:shadow-lg flex items-center justify-center gap-2 ${plant.inStock === false && 'opacity-50 cursor-not-allowed'
+                  }`}
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771z"/>
+                  <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771z" />
                 </svg>
                 <span>Order on WhatsApp</span>
               </button>
-              
+
               <Link
                 to={category?.slug ? `/categories/${section?.slug}/${category.slug}` : '/categories'}
                 className="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white px-4 py-3 rounded-lg transition text-sm font-semibold text-center"

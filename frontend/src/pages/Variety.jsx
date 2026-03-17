@@ -4,8 +4,6 @@ import { Helmet } from 'react-helmet-async';
 import api from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
-import BackButton from '../components/BackButton';
-import Breadcrumbs from '../components/Breadcrumbs';
 
 const Variety = () => {
   const { sectionSlug, categorySlug } = useParams();
@@ -106,13 +104,6 @@ const Variety = () => {
   const totalPlants = Object.values(plantCounts).reduce((sum, count) => sum + count, 0);
   const hasPlants = totalPlants > 0;
 
-  const breadcrumbItems = [
-    { name: 'Home', path: '/' },
-    { name: 'Sections', path: '/categories' },
-    { name: section.name, path: `/categories/${section.slug}` },
-    { name: category.name }
-  ];
-
   return (
     <>
       <Helmet>
@@ -121,9 +112,6 @@ const Variety = () => {
       </Helmet>
 
       <div className="container mx-auto px-4 py-6 md:py-8">
-        <BackButton fallbackPath={`/categories/${section.slug}`} />
-        <Breadcrumbs items={breadcrumbItems} />
-
         {/* Category Header - Compact */}
         <div className="relative rounded-xl overflow-hidden mb-6 h-32 md:h-40">
           {category.image ? (
