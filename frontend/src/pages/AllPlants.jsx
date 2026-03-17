@@ -8,11 +8,17 @@ import ErrorMessage from '../components/ErrorMessage';
 const AllPlants = () => {
   const [plants, setPlants] = useState([]);
   const [filteredPlants, setFilteredPlants] = useState([]);
+  const [sections, setSections] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [varieties, setVarieties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedSection, setSelectedSection] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedVariety, setSelectedVariety] = useState('all');
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState('asc');
@@ -22,33 +28,83 @@ const AllPlants = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [activeFilterCount, setActiveFilterCount] = useState(0);
 
+  // Filtered dropdown options
+  const [filteredCategories, setFilteredCategories] = useState([]);
+  const [filteredVarieties, setFilteredVarieties] = useState([]);
+
   useEffect(() => {
-    fetchPlants();
+    fetchData();
   }, []);
+
+  // Update filtered categories when section changes
+  useEffect(() => {
+    if (selectedSection !== 'all') {
+      const filtered = categories.filter(cat => cat.section?._id === selectedSection);
+      setFilteredCategories(filtered);
+      if (!filtered.some(cat => cat._id === selectedCategory)) {
+        setSelectedCategory('all');
+        setSelectedVariety('all');
+      }
+    } else {
+      setFilteredCategories(categories);
+    }
+  }, [selectedSection, categories]);
+
+  // Update filtered varieties when category changes
+  useEffect(() => {
+    if (selectedCategory !== 'all') {
+      const filtered = varieties.filter(varie => varie.category?._id === selectedCategory);
+      setFilteredVarieties(filtered);
+      if (!filtered.some(varie => varie._id === selectedVariety)) {
+        setSelectedVariety('all');
+      }
+    } else if (selectedSection !== 'all') {
+      // If section selected but category is 'all', show all varieties in that section
+      const filtered = varieties.filter(varie => varie.section?._id === selectedSection);
+      setFilteredVarieties(filtered);
+    } else {
+      setFilteredVarieties(varieties);
+    }
+  }, [selectedCategory, selectedSection, varieties]);
 
   useEffect(() => {
     if (plants.length > 0) {
       applyFilters();
     }
-  }, [plants, searchTerm, priceRange, sortBy, sortOrder, showInStockOnly]);
+  }, [plants, searchTerm, selectedSection, selectedCategory, selectedVariety, priceRange, sortBy, sortOrder, showInStockOnly]);
 
   useEffect(() => {
     // Calculate active filter count
     let count = 0;
     if (searchTerm) count++;
+    if (selectedSection !== 'all') count++;
+    if (selectedCategory !== 'all') count++;
+    if (selectedVariety !== 'all') count++;
     if (priceRange.min || priceRange.max) count++;
     if (sortBy !== 'name') count++;
     if (sortOrder !== 'asc') count++;
     if (showInStockOnly) count++;
     setActiveFilterCount(count);
-  }, [searchTerm, priceRange, sortBy, sortOrder, showInStockOnly]);
+  }, [searchTerm, selectedSection, selectedCategory, selectedVariety, priceRange, sortBy, sortOrder, showInStockOnly]);
 
-  const fetchPlants = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const { data } = await api.get('/plants');
-      setPlants(data.data || []);
-      setFilteredPlants(data.data || []);
+      const [plantsRes, sectionsRes, categoriesRes, varietiesRes] = await Promise.all([
+        api.get('/plants'),
+        api.get('/sections'),
+        api.get('/categories'),
+        api.get('/subcategories')
+      ]);
+
+      setPlants(plantsRes.data.data || []);
+      setFilteredPlants(plantsRes.data.data || []);
+      setSections(sectionsRes.data.data || []);
+      setCategories(categoriesRes.data.data || []);
+      setVarieties(varietiesRes.data.data || []);
+      setFilteredCategories(categoriesRes.data.data || []);
+      setFilteredVarieties(varietiesRes.data.data || []);
+
       setError(null);
     } catch (err) {
       setError('Failed to load plants');
@@ -68,6 +124,21 @@ const AllPlants = () => {
         plant.name.toLowerCase().includes(term) ||
         (plant.description && plant.description.toLowerCase().includes(term))
       );
+    }
+
+    // Apply section filter
+    if (selectedSection !== 'all') {
+      result = result.filter(plant => plant.section?._id === selectedSection);
+    }
+
+    // Apply category filter
+    if (selectedCategory !== 'all') {
+      result = result.filter(plant => plant.category?._id === selectedCategory);
+    }
+
+    // Apply variety filter
+    if (selectedVariety !== 'all') {
+      result = result.filter(plant => plant.variety?._id === selectedVariety);
     }
 
     // Apply price range
@@ -90,6 +161,12 @@ const AllPlants = () => {
         comparison = a.name.localeCompare(b.name);
       } else if (sortBy === 'price') {
         comparison = a.price - b.price;
+      } else if (sortBy === 'section') {
+        comparison = (a.section?.name || '').localeCompare(b.section?.name || '');
+      } else if (sortBy === 'category') {
+        comparison = (a.category?.name || '').localeCompare(b.category?.name || '');
+      } else if (sortBy === 'variety') {
+        comparison = (a.variety?.name || '').localeCompare(b.variety?.name || '');
       } else if (sortBy === 'newest') {
         comparison = new Date(b.createdAt) - new Date(a.createdAt);
       }
@@ -101,6 +178,9 @@ const AllPlants = () => {
 
   const clearFilters = () => {
     setSearchTerm('');
+    setSelectedSection('all');
+    setSelectedCategory('all');
+    setSelectedVariety('all');
     setPriceRange({ min: '', max: '' });
     setSortBy('name');
     setSortOrder('asc');
@@ -194,6 +274,72 @@ const AllPlants = () => {
               </div>
 
               <div className="space-y-4">
+                {/* Section Filter */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                    Section
+                  </label>
+                  <select
+                    value={selectedSection}
+                    onChange={(e) => {
+                      setSelectedSection(e.target.value);
+                      setSelectedCategory('all');
+                      setSelectedVariety('all');
+                    }}
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  >
+                    <option value="all">All Sections</option>
+                    {sections.map(section => (
+                      <option key={section._id} value={section._id}>
+                        {section.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Category Filter */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                    Category
+                  </label>
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => {
+                      setSelectedCategory(e.target.value);
+                      setSelectedVariety('all');
+                    }}
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    disabled={selectedSection === 'all' && filteredCategories.length === 0}
+                  >
+                    <option value="all">All Categories</option>
+                    {filteredCategories.map(category => (
+                      <option key={category._id} value={category._id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Variety Filter */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                    Variety
+                  </label>
+                  <select
+                    value={selectedVariety}
+                    onChange={(e) => setSelectedVariety(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    disabled={selectedCategory === 'all' && selectedSection === 'all' && filteredVarieties.length === 0}
+                  >
+                    <option value="all">All Varieties</option>
+                    {filteredVarieties.map(variety => (
+                      <option key={variety._id} value={variety._id}>
+                        {variety.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 {/* Price Range */}
                 <div>
                   <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
@@ -250,6 +396,9 @@ const AllPlants = () => {
                     >
                       <option value="name">Name</option>
                       <option value="price">Price</option>
+                      <option value="section">Section</option>
+                      <option value="category">Category</option>
+                      <option value="variety">Variety</option>
                       <option value="newest">Newest First</option>
                     </select>
                   </div>
@@ -310,34 +459,67 @@ const AllPlants = () => {
                   </button>
                 </span>
               )}
-              {(priceRange.min || priceRange.max) && (
-                <span className="inline-flex items-center px-3 py-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-sm rounded-full">
-                  ₹{priceRange.min || '0'} - ₹{priceRange.max || '∞'}
-                  <button
-                    onClick={() => setPriceRange({ min: '', max: '' })}
-                    className="ml-2 text-purple-700 dark:text-purple-400 hover:text-purple-900"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-              {showInStockOnly && (
+              {selectedSection !== 'all' && (
                 <span className="inline-flex items-center px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm rounded-full">
-                  In Stock Only
+                  Section: {sections.find(s => s._id === selectedSection)?.name}
                   <button
-                    onClick={() => setShowInStockOnly(false)}
+                    onClick={() => setSelectedSection('all')}
                     className="ml-2 text-green-700 dark:text-green-400 hover:text-green-900"
                   >
                     ×
                   </button>
                 </span>
               )}
-              {sortBy !== 'name' && (
+              {selectedCategory !== 'all' && (
+                <span className="inline-flex items-center px-3 py-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-sm rounded-full">
+                  Category: {categories.find(c => c._id === selectedCategory)?.name}
+                  <button
+                    onClick={() => setSelectedCategory('all')}
+                    className="ml-2 text-purple-700 dark:text-purple-400 hover:text-purple-900"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              {selectedVariety !== 'all' && (
                 <span className="inline-flex items-center px-3 py-1.5 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 text-sm rounded-full">
+                  Variety: {varieties.find(v => v._id === selectedVariety)?.name}
+                  <button
+                    onClick={() => setSelectedVariety('all')}
+                    className="ml-2 text-orange-700 dark:text-orange-400 hover:text-orange-900"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              {(priceRange.min || priceRange.max) && (
+                <span className="inline-flex items-center px-3 py-1.5 bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400 text-sm rounded-full">
+                  ₹{priceRange.min || '0'} - ₹{priceRange.max || '∞'}
+                  <button
+                    onClick={() => setPriceRange({ min: '', max: '' })}
+                    className="ml-2 text-pink-700 dark:text-pink-400 hover:text-pink-900"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              {showInStockOnly && (
+                <span className="inline-flex items-center px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-sm rounded-full">
+                  In Stock Only
+                  <button
+                    onClick={() => setShowInStockOnly(false)}
+                    className="ml-2 text-emerald-700 dark:text-emerald-400 hover:text-emerald-900"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              {sortBy !== 'name' && (
+                <span className="inline-flex items-center px-3 py-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-sm rounded-full">
                   Sort: {sortBy}
                   <button
                     onClick={() => setSortBy('name')}
-                    className="ml-2 text-orange-700 dark:text-orange-400 hover:text-orange-900"
+                    className="ml-2 text-amber-700 dark:text-amber-400 hover:text-amber-900"
                   >
                     ×
                   </button>
@@ -352,7 +534,7 @@ const AllPlants = () => {
               <LoadingSpinner size="lg" />
             </div>
           ) : error ? (
-            <ErrorMessage message={error} retry={fetchPlants} />
+            <ErrorMessage message={error} retry={fetchData} />
           ) : filteredPlants.length === 0 ? (
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-12 text-center border border-gray-200 dark:border-gray-700">
               <div className="text-6xl mb-4 opacity-30">🌱</div>
