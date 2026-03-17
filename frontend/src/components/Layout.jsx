@@ -68,14 +68,11 @@ const Layout = ({ children }) => {
         </button>
       )}
 
-      {/* Header with glass effect on scroll */}
-      <div className={`sticky top-0 z-40 transition-all duration-300 ${scrollProgress > 5 ? 'backdrop-blur-md bg-white/80 dark:bg-gray-900/80 shadow-md' : ''
-        }`}>
-        <Header />
-      </div>
+      {/* Header - REMOVED the sticky wrapper div, just render Header directly */}
+      <Header />
 
-      {/* Main Content */}
-      <main className="flex-grow">
+      {/* Main Content - Added padding top to account for fixed header */}
+      <main className="flex-grow pt-20 md:pt-24">
         {/* Page Transition Effect */}
         <div className="animate-fade-in-up">
           {children}
