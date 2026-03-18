@@ -52,6 +52,11 @@ const ManagePlants = () => {
 
   useEffect(() => {
     fetchData();
+
+    // Cleanup object URLs on unmount
+    return () => {
+      imagePreviews.forEach(preview => URL.revokeObjectURL(preview));
+    };
   }, []);
 
   // Calculate active filter count
@@ -187,7 +192,7 @@ const ManagePlants = () => {
         await Promise.all([
           api.get("/sections"),
           api.get("/categories"),
-          api.get("/subcategories"),
+          api.get("/varieties"), // FIXED: changed from /subcategories
           api.get("/plants"),
         ]);
       setSections(sectionsRes.data.data || []);
@@ -213,12 +218,28 @@ const ManagePlants = () => {
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files);
     if (files.length > 0) {
+      // Check total images will not exceed 3
+      if (imageFiles.length + files.length > 3) {
+        toast.error(`You can only upload up to 3 images. You have ${imageFiles.length} already.`);
+        return;
+      }
+
+      // Validate each file
+      for (const file of files) {
+        if (file.size > 5 * 1024 * 1024) {
+          toast.error(`Image ${file.name} is too large. Max 5MB`);
+          return;
+        }
+        if (!file.type.startsWith('image/')) {
+          toast.error(`File ${file.name} is not an image`);
+          return;
+        }
+      }
+
       const newFiles = [...imageFiles, ...files].slice(0, 3);
       setImageFiles(newFiles);
-
       const newPreviews = newFiles.map(file => URL.createObjectURL(file));
       setImagePreviews(newPreviews);
-
       setFormData((prev) => ({ ...prev, images: [] }));
     }
   };
@@ -227,10 +248,11 @@ const ManagePlants = () => {
     const newFiles = imageFiles.filter((_, i) => i !== index);
     const newPreviews = imagePreviews.filter((_, i) => i !== index);
 
+    // Revoke the removed object URL
+    URL.revokeObjectURL(imagePreviews[index]);
+
     setImageFiles(newFiles);
     setImagePreviews(newPreviews);
-
-    URL.revokeObjectURL(imagePreviews[index]);
   };
 
   const handleSubmit = async (e) => {
@@ -362,6 +384,9 @@ const ManagePlants = () => {
   };
 
   const resetForm = () => {
+    // Cleanup preview URLs
+    imagePreviews.forEach(preview => URL.revokeObjectURL(preview));
+
     setFormData({
       name: "",
       price: "",
@@ -379,6 +404,11 @@ const ManagePlants = () => {
   };
 
   const handleCancel = () => {
+    if (editingId || formData.name || formData.price || imageFiles.length > 0) {
+      if (!window.confirm("You have unsaved changes. Are you sure you want to cancel?")) {
+        return;
+      }
+    }
     resetForm();
     setShowForm(false);
   };
@@ -649,9 +679,14 @@ const ManagePlants = () => {
         <div className="container mx-auto px-4 py-6">
           {/* Header with Add Button */}
           <div className="flex items-center justify-between mb-6">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Manage Plants
-            </h1>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                Manage Plants
+              </h1>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                {plants.reduce((total, plant) => total + (plant.images?.length || 1), 0)} total images
+              </p>
+            </div>
             {!showForm && !editingId && (
               <button
                 onClick={() => setShowForm(true)}
@@ -773,11 +808,17 @@ const ManagePlants = () => {
                       disabled={!formData.category}
                     >
                       <option value="">Select variety</option>
-                      {filteredVarieties.map((variety) => (
-                        <option key={variety._id} value={variety._id}>
-                          {variety.name}
+                      {filteredVarieties.length === 0 ? (
+                        <option value="" disabled className="text-gray-400">
+                          No varieties available for this category
                         </option>
-                      ))}
+                      ) : (
+                        filteredVarieties.map((variety) => (
+                          <option key={variety._id} value={variety._id}>
+                            {variety.name}
+                          </option>
+                        ))
+                      )}
                     </select>
                   </div>
                 </div>
@@ -914,6 +955,9 @@ const ManagePlants = () => {
                 {filteredPlants.length === 1 ? 'plant' : 'plants'} found
               </span>
             </div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              {plants.reduce((total, plant) => total + (plant.images?.length || 1), 0)} total images
+            </div>
           </div>
 
           {/* Plants List */}
@@ -965,7 +1009,7 @@ const ManagePlants = () => {
                           )}
                           {plant.variety && (
                             <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-xs rounded-full">
-                              {plant.variety.name}
+                              {typeof plant.variety === 'object' ? plant.variety.name : 'Variety'}
                             </span>
                           )}
                         </div>

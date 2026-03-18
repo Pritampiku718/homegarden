@@ -13,8 +13,10 @@ const AdminDashboard = () => {
     plants: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [recentActivity, setRecentActivity] = useState([]);
   const [greeting, setGreeting] = useState("");
+  const [lastUpdated, setLastUpdated] = useState(new Date());
 
   useEffect(() => {
     fetchStats();
@@ -31,20 +33,25 @@ const AdminDashboard = () => {
   const fetchStats = async () => {
     try {
       setLoading(true);
+      setError(null);
+
       const [sectionsRes, categoriesRes, varietiesRes, plantsRes] =
         await Promise.all([
           api.get("/sections"),
           api.get("/categories"),
-          api.get("/subcategories"),
+          api.get("/varieties"), // FIXED: changed from /subcategories
           api.get("/plants"),
         ]);
 
-      setStats({
+      const newStats = {
         sections: sectionsRes.data.data?.length || 0,
         categories: categoriesRes.data.data?.length || 0,
         varieties: varietiesRes.data.data?.length || 0,
         plants: plantsRes.data.data?.length || 0,
-      });
+      };
+
+      setStats(newStats);
+      setLastUpdated(new Date());
 
       // Create recent activity items
       const activities = [];
@@ -109,6 +116,7 @@ const AdminDashboard = () => {
       );
     } catch (error) {
       console.error("Failed to fetch stats:", error);
+      setError("Failed to load dashboard data. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -170,28 +178,32 @@ const AdminDashboard = () => {
       title: "Add Section",
       icon: "➕",
       link: "/admin/sections",
-      color: "blue",
+      bgClass: "bg-blue-100 dark:bg-blue-900/30",
+      textClass: "text-blue-600 dark:text-blue-400",
       description: "Create a new section",
     },
     {
       title: "Add Category",
       icon: "➕",
       link: "/admin/categories",
-      color: "green",
+      bgClass: "bg-green-100 dark:bg-green-900/30",
+      textClass: "text-green-600 dark:text-green-400",
       description: "Create a new category",
     },
     {
       title: "Add Variety",
       icon: "➕",
       link: "/admin/varieties",
-      color: "purple",
+      bgClass: "bg-purple-100 dark:bg-purple-900/30",
+      textClass: "text-purple-600 dark:text-purple-400",
       description: "Create a new variety",
     },
     {
       title: "Add Plant",
       icon: "➕",
       link: "/admin/plants",
-      color: "orange",
+      bgClass: "bg-orange-100 dark:bg-orange-900/30",
+      textClass: "text-orange-600 dark:text-orange-400",
       description: "Create a new plant",
     },
   ];
@@ -235,11 +247,23 @@ const AdminDashboard = () => {
                   Welcome to your dashboard. Here's what's happening with your nursery today.
                 </p>
               </div>
-              <div className="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-2xl p-4 md:p-5">
-                <div className="text-3xl">🌿</div>
-                <div>
-                  <div className="text-xs opacity-80">Total Plants</div>
-                  <div className="text-2xl font-bold">{stats.plants}</div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={fetchStats}
+                  className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+                  title="Refresh stats"
+                  disabled={loading}
+                >
+                  <svg className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
+                <div className="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-2xl p-4 md:p-5">
+                  <div className="text-3xl">🌿</div>
+                  <div>
+                    <div className="text-xs opacity-80">Total Plants</div>
+                    <div className="text-2xl font-bold">{stats.plants}</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -247,6 +271,13 @@ const AdminDashboard = () => {
         </div>
 
         <div className="container mx-auto px-4 -mt-6 md:-mt-8">
+          {/* Error Display */}
+          {error && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 mb-6">
+              <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
+            </div>
+          )}
+
           {/* Quick Actions Section */}
           <div className="mt-8">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
@@ -261,9 +292,9 @@ const AdminDashboard = () => {
                   to={action.link}
                   className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 hover:shadow-xl transition-all transform hover:-translate-y-1 group relative overflow-hidden"
                 >
-                  <div className={`absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity bg-gradient-to-br from-${action.color}-500 to-${action.color}-600`} />
+                  <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 opacity-0 group-hover:opacity-10 transition-opacity" />
                   <div className="relative">
-                    <div className={`w-10 h-10 rounded-full bg-${action.color}-100 dark:bg-${action.color}-900/30 flex items-center justify-center text-xl mb-2`}>
+                    <div className={`w-10 h-10 rounded-full ${action.bgClass} flex items-center justify-center text-xl mb-2`}>
                       {action.icon}
                     </div>
                     <h3 className="font-semibold text-gray-900 dark:text-white text-sm mb-1">
@@ -300,7 +331,11 @@ const AdminDashboard = () => {
                       </div>
                       <div>
                         <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                          {item.value}
+                          {loading ? (
+                            <div className="w-12 h-6 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                          ) : (
+                            item.value
+                          )}
                         </div>
                         <div className={`text-xs font-medium ${item.textLight} ${item.textDark}`}>
                           Total {item.label}
@@ -351,7 +386,7 @@ const AdminDashboard = () => {
                     {recentActivity.map((activity, index) => (
                       <div
                         key={index}
-                        className="p-4 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
+                        className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                       >
                         <div className="flex items-center gap-3">
                           <div
@@ -435,7 +470,7 @@ const AdminDashboard = () => {
           {/* Footer Stats */}
           <div className="mt-8 mb-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-5">
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-center gap-4">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
                   <span className="text-sm text-gray-600 dark:text-gray-400">Sections: {stats.sections}</span>
@@ -454,7 +489,7 @@ const AdminDashboard = () => {
                 </div>
               </div>
               <div className="text-xs text-gray-500 dark:text-gray-500">
-                Last updated: {new Date().toLocaleTimeString()}
+                Last updated: {lastUpdated.toLocaleTimeString()}
               </div>
             </div>
           </div>

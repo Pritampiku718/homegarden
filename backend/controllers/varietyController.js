@@ -20,6 +20,7 @@ export const getVarieties = async (req, res) => {
       data: varieties,
     });
   } catch (error) {
+    console.error("Error in getVarieties:", error);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -54,6 +55,7 @@ export const getVarietiesByCategory = async (req, res) => {
 
     res.json({ success: true, data: varieties });
   } catch (error) {
+    console.error("Error in getVarietiesByCategory:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -73,7 +75,7 @@ export const getVarietyById = async (req, res) => {
         .json({ success: false, message: "Variety not found" });
     }
 
-    const plants = await Plant.find({ subCategory: variety._id })
+    const plants = await Plant.find({ variety: variety._id }) // Fixed: changed from subCategory to variety
       .populate("section", "name slug")
       .populate("category", "name slug")
       .sort({ name: 1 });
@@ -86,6 +88,7 @@ export const getVarietyById = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("Error in getVarietyById:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -105,7 +108,7 @@ export const getVarietyBySlug = async (req, res) => {
         .json({ success: false, message: "Variety not found" });
     }
 
-    const plants = await Plant.find({ subCategory: variety._id })
+    const plants = await Plant.find({ variety: variety._id }) // Fixed: changed from subCategory to variety
       .populate("section", "name slug")
       .populate("category", "name slug")
       .sort({ name: 1 });
@@ -118,6 +121,7 @@ export const getVarietyBySlug = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("Error in getVarietyBySlug:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -130,6 +134,15 @@ export const createVariety = async (req, res) => {
     const { name, category, section, image, description } = req.body;
 
     console.log("📦 Creating variety:", { name, category, section });
+
+    // Validate required fields
+    if (!name || !category || !section) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Missing required fields: name, category, section are required",
+      });
+    }
 
     // Verify category exists and belongs to section
     const categoryExists = await Category.findOne({
@@ -182,13 +195,30 @@ export const createVariety = async (req, res) => {
   } catch (error) {
     console.error("❌ Create variety error:", error);
 
+    // Handle validation errors
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: "Validation error",
+        errors: Object.keys(error.errors).map((key) => ({
+          field: key,
+          message: error.errors[key].message,
+        })),
+      });
+    }
+
+    // Handle duplicate key errors
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
         message: "Variety already exists in this category",
       });
     }
-    res.status(500).json({ success: false, message: error.message });
+
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to create variety",
+    });
   }
 };
 
@@ -198,6 +228,8 @@ export const createVariety = async (req, res) => {
 export const updateVariety = async (req, res) => {
   try {
     const { name, category, section, image, description } = req.body;
+
+    console.log("📦 Updating variety:", req.params.id, req.body);
 
     // Find the variety first
     const variety = await Variety.findById(req.params.id);
@@ -262,13 +294,28 @@ export const updateVariety = async (req, res) => {
   } catch (error) {
     console.error("❌ Update variety error:", error);
 
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: "Validation error",
+        errors: Object.keys(error.errors).map((key) => ({
+          field: key,
+          message: error.errors[key].message,
+        })),
+      });
+    }
+
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
         message: "Variety already exists in this category",
       });
     }
-    res.status(500).json({ success: false, message: error.message });
+
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to update variety",
+    });
   }
 };
 
@@ -287,7 +334,7 @@ export const deleteVariety = async (req, res) => {
 
     // Check if any plants are using this variety
     const plantCount = await Plant.countDocuments({
-      subCategory: variety._id,
+      variety: variety._id, // Fixed: changed from subCategory to variety
     });
 
     if (plantCount > 0) {
@@ -305,6 +352,9 @@ export const deleteVariety = async (req, res) => {
     res.json({ success: true, message: "Variety deleted successfully" });
   } catch (error) {
     console.error("❌ Delete variety error:", error);
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to delete variety",
+    });
   }
 };

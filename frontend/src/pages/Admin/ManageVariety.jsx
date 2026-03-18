@@ -13,6 +13,7 @@ const ManageVariety = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(null);
+  const [activeFilterCount, setActiveFilterCount] = useState(0);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -35,6 +36,24 @@ const ManageVariety = () => {
   const [sortOrder, setSortOrder] = useState("asc");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+
+  // Cleanup object URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (imagePreview && imagePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
+
+  // Calculate active filters
+  useEffect(() => {
+    let count = 0;
+    if (filterSection !== "all") count++;
+    if (filterCategory !== "all") count++;
+    if (searchTerm) count++;
+    setActiveFilterCount(count);
+  }, [filterSection, filterCategory, searchTerm]);
 
   useEffect(() => {
     fetchData();
@@ -113,7 +132,7 @@ const ManageVariety = () => {
       const [sectionsRes, categoriesRes, varietiesRes] = await Promise.all([
         api.get("/sections"),
         api.get("/categories"),
-        api.get("/subcategories"), // API endpoint remains /subcategories
+        api.get("/varieties"), // FIXED: changed from /subcategories
       ]);
       setSections(sectionsRes.data.data || []);
       setCategories(categoriesRes.data.data || []);
@@ -134,6 +153,23 @@ const ManageVariety = () => {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Image size should be less than 5MB");
+        return;
+      }
+
+      // Validate file type
+      if (!file.type.startsWith("image/")) {
+        toast.error("Please upload an image file");
+        return;
+      }
+
+      // Clean up previous preview
+      if (imagePreview && imagePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(imagePreview);
+      }
+
       setImageFile(file);
       setImagePreview(URL.createObjectURL(file));
       setFormData((prev) => ({ ...prev, image: "" }));
@@ -141,6 +177,9 @@ const ManageVariety = () => {
   };
 
   const handleRemoveImage = () => {
+    if (imagePreview && imagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview);
+    }
     setImageFile(null);
     setImagePreview("");
     setFormData((prev) => ({ ...prev, image: "" }));
@@ -176,7 +215,7 @@ const ManageVariety = () => {
 
       if (editingId) {
         // Update existing variety
-        await api.put(`/subcategories/${editingId}`, varietyData);
+        await api.put(`/varieties/${editingId}`, varietyData); // FIXED
 
         // Delete old image from Cloudinary if new image was uploaded
         if (oldImagePublicId && imageFile) {
@@ -192,7 +231,7 @@ const ManageVariety = () => {
         toast.success("Variety updated successfully");
       } else {
         // Create new variety
-        await api.post("/subcategories", varietyData);
+        await api.post("/varieties", varietyData); // FIXED
         toast.success("Variety created successfully");
       }
 
@@ -253,7 +292,7 @@ const ManageVariety = () => {
       }
 
       // Delete from database
-      await api.delete(`/subcategories/${id}`);
+      await api.delete(`/varieties/${id}`); // FIXED
       toast.success("Variety deleted successfully");
       fetchData();
 
@@ -267,6 +306,11 @@ const ManageVariety = () => {
   };
 
   const resetForm = () => {
+    // Clean up preview URL
+    if (imagePreview && imagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview);
+    }
+
     setFormData({
       name: "",
       section: "",
@@ -281,7 +325,17 @@ const ManageVariety = () => {
   };
 
   const handleCancel = () => {
+    if (formData.name || formData.description || imageFile ||
+      (editingId && (formData.name || formData.description))) {
+      if (!window.confirm("You have unsaved changes. Are you sure you want to cancel?")) {
+        return;
+      }
+    }
     resetForm();
+  };
+
+  const clearSearch = () => {
+    setSearchTerm('');
   };
 
   // Pagination calculations
@@ -385,7 +439,11 @@ const ManageVariety = () => {
                                focus:ring-2 focus:ring-green-500 focus:border-transparent
                                bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       required
+                      maxLength="50"
                     />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {formData.name.length}/50 characters
+                    </p>
                   </div>
 
                   {/* Description */}
@@ -402,7 +460,11 @@ const ManageVariety = () => {
                       className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
                                focus:ring-2 focus:ring-green-500 focus:border-transparent
                                bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
+                      maxLength="200"
                     />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {formData.description.length}/200 characters
+                    </p>
                   </div>
                 </div>
 
@@ -421,7 +483,7 @@ const ManageVariety = () => {
                     />
 
                     {imagePreview && (
-                      <div className="mt-4 relative inline-block">
+                      <div className="mt-4 relative inline-block group">
                         <img
                           src={imagePreview}
                           alt="Preview"
@@ -431,7 +493,7 @@ const ManageVariety = () => {
                           type="button"
                           onClick={handleRemoveImage}
                           className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 
-                                   hover:bg-red-600 transition-colors shadow-lg"
+                                   hover:bg-red-600 transition-colors shadow-lg opacity-0 group-hover:opacity-100"
                           title="Remove image"
                         >
                           <svg
@@ -451,7 +513,7 @@ const ManageVariety = () => {
                       </div>
                     )}
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                      Recommended: Square image, at least 300x300px
+                      Recommended: Square image, at least 300x300px, max 5MB
                     </p>
                   </div>
 
@@ -495,6 +557,29 @@ const ManageVariety = () => {
           {/* Search and Filter Bar */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden mb-6">
             <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Search & Filter
+                  {activeFilterCount > 0 && (
+                    <span className="ml-2 bg-green-600 text-white px-2 py-1 rounded-full text-xs">
+                      {activeFilterCount} active
+                    </span>
+                  )}
+                </h3>
+                {activeFilterCount > 0 && (
+                  <button
+                    onClick={() => {
+                      setFilterSection("all");
+                      setFilterCategory("all");
+                      setSearchTerm("");
+                    }}
+                    className="text-sm text-red-600 hover:text-red-700 font-medium"
+                  >
+                    Clear all filters
+                  </button>
+                )}
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Search */}
                 <div className="lg:col-span-2">
@@ -507,7 +592,7 @@ const ManageVariety = () => {
                       placeholder="Search by name or description..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
+                      className="w-full pl-10 pr-10 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
                                focus:ring-2 focus:ring-green-500 focus:border-transparent
                                bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     />
@@ -524,6 +609,17 @@ const ManageVariety = () => {
                         d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                       />
                     </svg>
+                    {searchTerm && (
+                      <button
+                        onClick={clearSearch}
+                        className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                        title="Clear search"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -605,9 +701,17 @@ const ManageVariety = () => {
                 <div className="text-6xl mb-4">🔖</div>
                 <p className="text-gray-600 dark:text-gray-400">
                   {searchTerm
-                    ? "No varieties match your search"
+                    ? `No varieties match "${searchTerm}"`
                     : "No varieties found. Create your first variety above."}
                 </p>
+                {searchTerm && (
+                  <button
+                    onClick={clearSearch}
+                    className="mt-4 text-green-600 dark:text-green-400 hover:underline"
+                  >
+                    Clear search
+                  </button>
+                )}
               </div>
             ) : (
               <>
@@ -615,7 +719,7 @@ const ManageVariety = () => {
                   {currentItems.map((variety) => (
                     <div
                       key={variety._id}
-                      className="p-6 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
+                      className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                     >
                       <div className="flex items-center space-x-4">
                         {variety.image && (

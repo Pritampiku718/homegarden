@@ -29,6 +29,15 @@ const ManageSections = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
 
+  // Cleanup object URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (imagePreview && imagePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
+
   useEffect(() => {
     fetchSections();
   }, []);
@@ -73,6 +82,23 @@ const ManageSections = () => {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Image size should be less than 5MB");
+        return;
+      }
+
+      // Validate file type
+      if (!file.type.startsWith("image/")) {
+        toast.error("Please upload an image file");
+        return;
+      }
+
+      // Clean up previous preview
+      if (imagePreview && imagePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(imagePreview);
+      }
+
       setImageFile(file);
       setImagePreview(URL.createObjectURL(file));
       setFormData(prev => ({ ...prev, image: '' }));
@@ -196,6 +222,11 @@ const ManageSections = () => {
   };
 
   const resetForm = () => {
+    // Clean up preview URL
+    if (imagePreview && imagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview);
+    }
+
     setFormData({ name: '', image: '', description: '' });
     setImageFile(null);
     setImagePreview('');
@@ -204,13 +235,25 @@ const ManageSections = () => {
   };
 
   const handleCancelEdit = () => {
+    if (formData.name || formData.description || imageFile) {
+      if (!window.confirm("You have unsaved changes. Are you sure you want to cancel?")) {
+        return;
+      }
+    }
     resetForm();
   };
 
   const handleRemoveImage = () => {
+    if (imagePreview && imagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview);
+    }
     setImageFile(null);
     setImagePreview('');
     setFormData(prev => ({ ...prev, image: '' }));
+  };
+
+  const clearSearch = () => {
+    setSearchTerm('');
   };
 
   // Pagination calculations
@@ -259,7 +302,11 @@ const ManageSections = () => {
                                focus:ring-2 focus:ring-green-500 focus:border-transparent
                                bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       required
+                      maxLength="50"
                     />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {formData.name.length}/50 characters
+                    </p>
                   </div>
 
                   <div>
@@ -275,7 +322,11 @@ const ManageSections = () => {
                       className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
                                focus:ring-2 focus:ring-green-500 focus:border-transparent
                                bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
+                      maxLength="200"
                     />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {formData.description.length}/200 characters
+                    </p>
                   </div>
                 </div>
 
@@ -294,7 +345,7 @@ const ManageSections = () => {
                     />
 
                     {imagePreview && (
-                      <div className="mt-4 relative inline-block">
+                      <div className="mt-4 relative inline-block group">
                         <img
                           src={imagePreview}
                           alt="Preview"
@@ -304,7 +355,7 @@ const ManageSections = () => {
                           type="button"
                           onClick={handleRemoveImage}
                           className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 
-                                   hover:bg-red-600 transition-colors shadow-lg"
+                                   hover:bg-red-600 transition-colors shadow-lg opacity-0 group-hover:opacity-100"
                           title="Remove image"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -314,7 +365,7 @@ const ManageSections = () => {
                       </div>
                     )}
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                      Recommended: Square image, at least 300x300px
+                      Recommended: Square image, at least 300x300px, max 5MB
                     </p>
                   </div>
 
@@ -366,13 +417,24 @@ const ManageSections = () => {
                       placeholder="Search by name or description..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
+                      className="w-full pl-10 pr-10 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
                                focus:ring-2 focus:ring-green-500 focus:border-transparent
                                bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     />
                     <svg className="absolute left-3 top-3.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
+                    {searchTerm && (
+                      <button
+                        onClick={clearSearch}
+                        className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                        title="Clear search"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -435,12 +497,20 @@ const ManageSections = () => {
                 <p className="text-gray-600 dark:text-gray-400">
                   {searchTerm ? 'No sections match your search' : 'No sections found. Create your first section above.'}
                 </p>
+                {searchTerm && (
+                  <button
+                    onClick={clearSearch}
+                    className="mt-4 text-green-600 dark:text-green-400 hover:underline"
+                  >
+                    Clear search
+                  </button>
+                )}
               </div>
             ) : (
               <>
                 <div className="divide-y divide-gray-200 dark:divide-gray-700">
                   {currentItems.map((section) => (
-                    <div key={section._id} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
+                    <div key={section._id} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                       <div className="flex items-center space-x-4">
                         {section.image && (
                           <img
