@@ -742,16 +742,11 @@ const ManagePlants = () => {
         )}
 
         <div className="container mx-auto px-4 py-6">
-          {/* Header with Add Button - UPDATED to show total plants */}
+          {/* Header with Add Button - CLEAN VERSION */}
           <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Manage Plants
-              </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                <span className="font-semibold text-green-600 dark:text-green-400">{totalPlants}</span> total plants • {plants.reduce((total, plant) => total + (plant.images?.length || 1), 0)} total images
-              </p>
-            </div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Manage Plants
+            </h1>
             {!showForm && !editingId && (
               <button
                 onClick={() => setShowForm(true)}
@@ -763,6 +758,12 @@ const ManagePlants = () => {
                 <span>Add New Plant</span>
               </button>
             )}
+          </div>
+
+          {/* Stats Summary - CLEAN SINGLE LINE */}
+          <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+            <span className="font-semibold text-green-600 dark:text-green-400">{totalPlants}</span> total plants •{' '}
+            {plants.reduce((total, plant) => total + (plant.images?.length || 1), 0)} total images
           </div>
 
           {/* Form Card - Always visible when showForm is true or editing */}
@@ -1010,18 +1011,10 @@ const ManagePlants = () => {
             </div>
           )}
 
-          {/* Results Summary - UPDATED to show total plants count */}
+          {/* Results Summary - CLEAN VERSION */}
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl font-bold text-gray-900 dark:text-white">
-                {filteredPlants.length}
-              </span>
-              <span className="text-gray-600 dark:text-gray-400 text-sm">
-                {filteredPlants.length === 1 ? 'plant' : 'plants'} shown • <span className="font-semibold text-green-600 dark:text-green-400">{totalPlants}</span> total
-              </span>
-            </div>
             <div className="text-sm text-gray-600 dark:text-gray-400">
-              {plants.reduce((total, plant) => total + (plant.images?.length || 1), 0)} total images
+              Showing <span className="font-bold text-gray-900 dark:text-white">{filteredPlants.length}</span> plants
             </div>
           </div>
 
