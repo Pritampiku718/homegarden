@@ -122,16 +122,9 @@ const PlantCard = ({ plant }) => {
       {/* Content */}
       <div className="p-3 sm:p-4 flex-1 flex flex-col bg-white dark:bg-gray-800">
         {/* Plant Name - Full name visible */}
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white break-words pr-2 max-w-[65%]">
-            {plant.name || 'Unnamed Plant'}
-          </h3>
-          <div className="text-right flex-shrink-0">
-            <span className="text-sm sm:text-base md:text-lg font-bold text-green-600 dark:text-green-400 whitespace-nowrap">
-              ₹{formattedPrice}
-            </span>
-          </div>
-        </div>
+        <h3 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white mb-2 leading-tight">
+          {plant.name || 'Unnamed Plant'}
+        </h3>
 
         {/* Category Tags */}
         <div className="flex flex-wrap gap-1 mb-2">
@@ -157,8 +150,15 @@ const PlantCard = ({ plant }) => {
           {plant.description || 'No description available'}
         </p>
 
-        {/* Action Buttons - Premium Level */}
-        <div className="grid grid-cols-3 gap-1 mt-auto pt-2">
+        {/* Price */}
+        <div className="mb-3">
+          <span className="text-base sm:text-lg font-bold text-green-600 dark:text-green-400">
+            ₹{formattedPrice}
+          </span>
+        </div>
+
+        {/* Action Buttons - Premium Level (your previous design) */}
+        <div className="grid grid-cols-3 gap-1 mt-auto">
           {/* View Button - Premium */}
           <Link
             to={plantDetailUrl}
@@ -171,10 +171,11 @@ const PlantCard = ({ plant }) => {
           <button
             onClick={handleAddToCart}
             disabled={!inStock}
-            className={`text-xs font-medium py-2 rounded-lg transition-all duration-300 flex items-center justify-center shadow-md hover:shadow-xl transform hover:scale-105 ${inStock
+            className={`text-xs font-medium py-2 rounded-lg transition-all duration-300 flex items-center justify-center shadow-md hover:shadow-xl transform hover:scale-105 ${
+              inStock
                 ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border border-green-500/20'
                 : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
-              }`}
+            }`}
           >
             Cart
           </button>
@@ -183,10 +184,11 @@ const PlantCard = ({ plant }) => {
           <button
             onClick={handleBuyNow}
             disabled={!inStock}
-            className={`text-xs font-medium py-2 rounded-lg transition-all duration-300 flex items-center justify-center shadow-md hover:shadow-xl transform hover:scale-105 ${inStock
+            className={`text-xs font-medium py-2 rounded-lg transition-all duration-300 flex items-center justify-center shadow-md hover:shadow-xl transform hover:scale-105 ${
+              inStock
                 ? 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white border border-orange-500/20'
                 : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
-              }`}
+            }`}
           >
             Buy
           </button>
