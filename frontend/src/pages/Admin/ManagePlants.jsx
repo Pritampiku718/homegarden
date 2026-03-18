@@ -192,7 +192,7 @@ const ManagePlants = () => {
         await Promise.all([
           api.get("/sections"),
           api.get("/categories"),
-          api.get("/varieties"), // FIXED: changed from /subcategories
+          api.get("/varieties"),
           api.get("/plants"),
         ]);
       setSections(sectionsRes.data.data || []);
@@ -258,6 +258,7 @@ const ManagePlants = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Validation
     if (
       !formData.name.trim() ||
       !formData.price ||
@@ -270,17 +271,52 @@ const ManagePlants = () => {
       return;
     }
 
+    // Check if we have images (either existing or new)
+    if (imageFiles.length === 0 && formData.images?.length === 0) {
+      toast.error("Please upload at least 1 image");
+      return;
+    }
+
     setSubmitting(true);
     try {
-      let imageUrls = [...(formData.images || [])];
+      // Start with existing images (convert to proper format)
+      let processedImages = [];
 
+      // Process existing images (from formData.images)
+      if (formData.images && formData.images.length > 0) {
+        processedImages = formData.images.map((img, index) => {
+          // If img is already an object with url property
+          if (typeof img === 'object' && img.url) {
+            return {
+              url: img.url,
+              publicId: img.publicId || extractPublicIdFromUrl(img.url),
+              isMain: img.isMain || (index === 0 && imageFiles.length === 0)
+            };
+          }
+          // If img is a string (URL)
+          return {
+            url: img,
+            publicId: extractPublicIdFromUrl(img),
+            isMain: index === 0 && imageFiles.length === 0
+          };
+        });
+      }
+
+      // Upload new images if selected
       if (imageFiles.length > 0) {
         const uploadPromises = imageFiles.map(file => uploadImage(file));
         const uploadResults = await Promise.all(uploadPromises);
 
-        const newUrls = uploadResults.map(result => result.url);
-        imageUrls = [...imageUrls, ...newUrls];
+        // Add new images to the array
+        const newImages = uploadResults.map((result, index) => ({
+          url: result.url,
+          publicId: result.publicId,
+          isMain: processedImages.length === 0 && index === 0 // First image is main if no existing images
+        }));
 
+        processedImages = [...processedImages, ...newImages];
+
+        // Delete old images if editing
         if (editingId && oldImagePublicIds.length > 0) {
           try {
             await Promise.all(oldImagePublicIds.map(id => deleteImage(id)));
@@ -291,14 +327,26 @@ const ManagePlants = () => {
         }
       }
 
+      // Ensure we have at least one image
+      if (processedImages.length === 0) {
+        toast.error("No images to save");
+        setSubmitting(false);
+        return;
+      }
+
+      // Make sure first image is marked as main
+      if (!processedImages.some(img => img.isMain)) {
+        processedImages[0].isMain = true;
+      }
+
       const plantData = {
-        name: formData.name,
+        name: formData.name.trim(),
         price: parseFloat(formData.price),
-        description: formData.description,
+        description: formData.description.trim(),
         section: formData.section,
         category: formData.category,
         variety: formData.variety,
-        images: imageUrls,
+        images: processedImages,
         inStock: formData.inStock,
       };
 
@@ -315,6 +363,7 @@ const ManagePlants = () => {
       setShowForm(false);
     } catch (error) {
       console.error("Submit error:", error);
+      console.error("Error response:", error.response?.data);
       toast.error(error.response?.data?.message || "Operation failed");
     } finally {
       setSubmitting(false);
@@ -334,11 +383,14 @@ const ManagePlants = () => {
       inStock: plant.inStock !== false,
     });
 
-    setImagePreviews(plant.images || []);
-
+    // Set image previews from existing images
     if (plant.images && plant.images.length > 0) {
+      const previews = plant.images.map(img => img.url);
+      setImagePreviews(previews);
+
+      // Extract public IDs for cleanup
       const publicIds = plant.images
-        .map(img => extractPublicIdFromUrl(img))
+        .map(img => img.publicId || extractPublicIdFromUrl(img.url))
         .filter(id => id);
       setOldImagePublicIds(publicIds);
     }
@@ -357,7 +409,12 @@ const ManagePlants = () => {
     try {
       if (images && images.length > 0) {
         const publicIds = images
-          .map(img => extractPublicIdFromUrl(img))
+          .map(img => {
+            if (typeof img === 'string') {
+              return extractPublicIdFromUrl(img);
+            }
+            return img.publicId || extractPublicIdFromUrl(img.url);
+          })
           .filter(id => id);
 
         if (publicIds.length > 0) {
@@ -985,7 +1042,7 @@ const ManagePlants = () => {
                       {/* Plant Image */}
                       <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0">
                         <img
-                          src={plant.images?.[0] || plant.image}
+                          src={plant.images?.[0]?.url || plant.images?.[0] || plant.image}
                           alt={plant.name}
                           className="w-full h-full object-cover"
                         />
