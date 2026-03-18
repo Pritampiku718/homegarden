@@ -569,10 +569,10 @@ const ManagePlants = () => {
               <button
                 onClick={() => setShowFilters(!showFilters)}
                 className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all ${showFilters
-                    ? "bg-green-600 text-white"
-                    : activeFilterCount > 0
-                      ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-2 border-green-500"
-                      : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                  ? "bg-green-600 text-white"
+                  : activeFilterCount > 0
+                    ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-2 border-green-500"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                   }`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -777,11 +777,10 @@ const ManagePlants = () => {
             )}
           </div>
 
-          {/* Stats Summary */}
+          {/* Stats Summary - UPDATED: Clean version without "filtered" */}
           <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
             <span className="font-semibold text-green-600 dark:text-green-400">{totalPlants}</span> total plants •{' '}
-            {plants.reduce((total, plant) => total + (plant.images?.length || 1), 0)} total images •{' '}
-            <span className="font-semibold text-blue-600 dark:text-blue-400">{filteredPlants.length}</span> filtered
+            {plants.reduce((total, plant) => total + (plant.images?.length || 1), 0)} total images
           </div>
 
           {/* Form Card - Always visible when showForm is true or editing */}
@@ -1029,14 +1028,11 @@ const ManagePlants = () => {
             </div>
           )}
 
-          {/* Results Summary */}
+          {/* Results Summary - UPDATED: Shows "Showing 10 of 22 plants" */}
           <div className="flex items-center justify-between mb-4">
             <div className="text-sm text-gray-600 dark:text-gray-400">
               Showing <span className="font-bold text-gray-900 dark:text-white">{currentItems.length}</span> of{" "}
-              <span className="font-bold text-gray-900 dark:text-white">{filteredPlants.length}</span> plants
-              {filteredPlants.length !== totalPlants && (
-                <span className="ml-1 text-xs">(filtered from {totalPlants} total)</span>
-              )}
+              <span className="font-bold text-gray-900 dark:text-white">{totalPlants}</span> plants
             </div>
           </div>
 
