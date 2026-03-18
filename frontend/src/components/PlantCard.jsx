@@ -157,48 +157,48 @@ const PlantCard = ({ plant }) => {
           </span>
         </div>
 
-        {/* Action Buttons - Fixed sizing and spacing */}
+        {/* Action Buttons - Perfectly centered text */}
         <div className="grid grid-cols-3 gap-2 sm:gap-3">
           {/* View Button - Premium Purple */}
           <Link
             to={plantDetailUrl}
-            className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white text-sm sm:text-base font-medium py-2.5 sm:py-3 px-1 rounded-xl transition-all duration-300 text-center flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg transform hover:scale-105"
+            className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white text-sm sm:text-base font-medium py-2.5 sm:py-3 px-3 rounded-xl transition-all duration-300 flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg transform hover:scale-105 w-full text-center"
           >
-            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
             </svg>
-            <span>View</span>
+            <span className="text-center">View</span>
           </Link>
 
           {/* Cart Button - Premium Green */}
           <button
             onClick={handleAddToCart}
             disabled={!inStock}
-            className={`text-sm sm:text-base font-medium py-2.5 sm:py-3 px-1 rounded-xl transition-all duration-300 flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg transform hover:scale-105 ${inStock
+            className={`text-sm sm:text-base font-medium py-2.5 sm:py-3 px-3 rounded-xl transition-all duration-300 flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg transform hover:scale-105 w-full text-center ${inStock
                 ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white'
                 : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
               }`}
           >
-            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
-            <span>Cart</span>
+            <span className="text-center">Cart</span>
           </button>
 
           {/* Buy Button - Premium Orange */}
           <button
             onClick={handleBuyNow}
             disabled={!inStock}
-            className={`text-sm sm:text-base font-medium py-2.5 sm:py-3 px-1 rounded-xl transition-all duration-300 flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg transform hover:scale-105 ${inStock
+            className={`text-sm sm:text-base font-medium py-2.5 sm:py-3 px-3 rounded-xl transition-all duration-300 flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg transform hover:scale-105 w-full text-center ${inStock
                 ? 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white'
                 : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
               }`}
           >
-            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
-            <span>Buy</span>
+            <span className="text-center">Buy</span>
           </button>
         </div>
       </div>
