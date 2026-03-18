@@ -121,7 +121,7 @@ const PlantCard = ({ plant }) => {
 
       {/* Content */}
       <div className="p-3 sm:p-4 flex-1 flex flex-col bg-white dark:bg-gray-800">
-        {/* Plant Name - FIXED: Full name visible, no truncation */}
+        {/* Plant Name - Full name visible */}
         <div className="flex justify-between items-start mb-2">
           <h3 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white break-words pr-2 max-w-[65%]">
             {plant.name || 'Unnamed Plant'}
@@ -157,34 +157,34 @@ const PlantCard = ({ plant }) => {
           {plant.description || 'No description available'}
         </p>
 
-        {/* Action Buttons */}
+        {/* Action Buttons - Premium Level */}
         <div className="grid grid-cols-3 gap-1 mt-auto pt-2">
-          {/* View Button */}
+          {/* View Button - Premium */}
           <Link
             to={plantDetailUrl}
-            className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-xs font-medium py-2 rounded-lg transition-all text-center flex items-center justify-center"
+            className="bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white text-xs font-medium py-2 rounded-lg transition-all duration-300 text-center flex items-center justify-center shadow-md hover:shadow-xl transform hover:scale-105 border border-gray-500/20"
           >
             View
           </Link>
 
-          {/* Cart Button */}
+          {/* Cart Button - Premium Green Gradient */}
           <button
             onClick={handleAddToCart}
             disabled={!inStock}
-            className={`text-xs font-medium py-2 rounded-lg transition-all ${inStock
-                ? 'bg-green-600 hover:bg-green-700 text-white'
+            className={`text-xs font-medium py-2 rounded-lg transition-all duration-300 flex items-center justify-center shadow-md hover:shadow-xl transform hover:scale-105 ${inStock
+                ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border border-green-500/20'
                 : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
               }`}
           >
             Cart
           </button>
 
-          {/* Buy Button */}
+          {/* Buy Button - Premium Orange Gradient */}
           <button
             onClick={handleBuyNow}
             disabled={!inStock}
-            className={`text-xs font-medium py-2 rounded-lg transition-all ${inStock
-                ? 'bg-orange-500 hover:bg-orange-600 text-white'
+            className={`text-xs font-medium py-2 rounded-lg transition-all duration-300 flex items-center justify-center shadow-md hover:shadow-xl transform hover:scale-105 ${inStock
+                ? 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white border border-orange-500/20'
                 : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
               }`}
           >
