@@ -1,124 +1,212 @@
 import { Link } from 'react-router-dom';
-import { sendWhatsAppOrder } from '../utils/whatsapp';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useCart } from '../contexts/CartContext';
+import { useNavigate } from 'react-router-dom';
 
 const PlantCard = ({ plant }) => {
+  const navigate = useNavigate();
+  const { addToCart } = useCart();
   const [imageError, setImageError] = useState(false);
+  const [imgSrc, setImgSrc] = useState('');
+  const [fallbackIndex, setFallbackIndex] = useState(0);
 
   const inStock = plant.inStock !== false;
 
-  // Construct the correct hierarchical URL
+  // Premium fallback images
+  const fallbackImages = [
+    'https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=400&auto=format',
+    'https://images.unsplash.com/photo-1485955900006-10f4d324d411?w=400&auto=format',
+    'https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?w=400&auto=format',
+    'https://images.unsplash.com/photo-1533038590840-1cde6e668a91?w=400&auto=format'
+  ];
+
   const sectionSlug = plant.section?.slug || '';
   const categorySlug = plant.category?.slug || '';
-  const varietySlug = plant.variety?.slug || '';
   const plantSlug = plant.slug || '';
 
-  // Only create the link if we have all required slugs
   const plantDetailUrl = sectionSlug && categorySlug && plantSlug
     ? `/categories/${sectionSlug}/${categorySlug}/${plantSlug}`
     : `/plants/${plantSlug}`;
 
   const formattedPrice = new Intl.NumberFormat('en-IN').format(plant.price || 0);
-  const defaultImage = 'https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=400';
-  const imageUrl = imageError ? defaultImage : (plant.images?.[0]?.url || plant.image || defaultImage);
+
+  useEffect(() => {
+    getImageUrl();
+  }, [plant]);
+
+  const getImageUrl = () => {
+    try {
+      if (plant.images && Array.isArray(plant.images) && plant.images.length > 0) {
+        const firstImage = plant.images[0];
+        if (typeof firstImage === 'string' && firstImage.startsWith('http')) {
+          setImgSrc(firstImage);
+        } else if (firstImage?.url?.startsWith('http')) {
+          setImgSrc(firstImage.url);
+        } else {
+          setImgSrc(fallbackImages[0]);
+        }
+      } else if (plant.image?.startsWith('http')) {
+        setImgSrc(plant.image);
+      } else {
+        setImgSrc(fallbackImages[0]);
+      }
+    } catch (error) {
+      setImgSrc(fallbackImages[0]);
+    }
+  };
+
+  const handleImageError = () => {
+    const nextIndex = (fallbackIndex + 1) % fallbackImages.length;
+    setFallbackIndex(nextIndex);
+    setImgSrc(fallbackImages[nextIndex]);
+    setImageError(true);
+  };
+
+  const handleAddToCart = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    addToCart(plant);
+  };
+
+  const handleBuyNow = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    addToCart(plant);
+    navigate('/checkout');
+  };
 
   return (
-    <div className="group relative bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-200 dark:border-gray-700">
+    <div className="group relative bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border border-gray-200 dark:border-gray-700 h-full flex flex-col">
 
-      {/* Image Container */}
-      <div className="relative h-40 xs:h-44 sm:h-48 md:h-56 overflow-hidden bg-gray-100 dark:bg-gray-700">
-        <img
-          src={imageUrl}
-          alt={plant.name || 'Plant'}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-          loading="lazy"
-          onError={() => setImageError(true)}
-        />
+      {/* Image Container - Premium with overlay */}
+      <Link to={plantDetailUrl} className="block relative h-48 sm:h-56 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 flex-shrink-0">
+        {imgSrc ? (
+          <img
+            src={imgSrc}
+            alt={plant.name || 'Plant'}
+            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+            loading="lazy"
+            onError={handleImageError}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-green-400 to-green-600">
+            <span className="text-5xl text-white opacity-50">🌿</span>
+          </div>
+        )}
 
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        {/* Premium Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-        {/* Stock Badge */}
+        {/* Stock Status Badge - Premium style */}
         {!inStock && (
-          <div className="absolute top-2 left-2 sm:top-3 sm:left-3">
-            <span className="px-2 sm:px-3 py-1 sm:py-1.5 bg-red-500 text-white text-xs font-bold rounded-full shadow-lg">
-              OUT OF STOCK
+          <div className="absolute bottom-3 left-3 z-10">
+            <span className="px-3 py-1.5 bg-red-500/90 backdrop-blur-sm text-white text-xs font-bold rounded-full shadow-lg border border-red-400/30">
+              Out of Stock
             </span>
           </div>
         )}
 
-        {/* Price Badge */}
-        <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
-          <span className="px-2 sm:px-3 py-1 sm:py-1.5 bg-green-600 text-white font-bold rounded-full shadow-lg text-xs sm:text-sm">
-            ₹{formattedPrice}
-          </span>
-        </div>
-
-        {/* Image Count Badge */}
+        {/* Image Count Badge - New premium addition */}
         {plant.images && plant.images.length > 1 && (
-          <div className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
-            📸 {plant.images.length}
+          <div className="absolute top-3 right-3 z-10">
+            <span className="px-2 py-1 bg-black/50 backdrop-blur-sm text-white text-xs rounded-full shadow-lg flex items-center gap-1 border border-white/20">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span>{plant.images.length}</span>
+            </span>
           </div>
         )}
-      </div>
+      </Link>
 
-      {/* Content */}
-      <div className="p-3 sm:p-4">
-        {/* Plant Name */}
-        <h3 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white mb-1 line-clamp-1">
-          {plant.name || 'Unnamed Plant'}
-        </h3>
+      {/* Content - Premium spacing and typography */}
+      <div className="p-4 sm:p-5 flex-1 flex flex-col bg-white dark:bg-gray-800">
+        {/* Plant Name and Price - Premium layout */}
+        <div className="flex justify-between items-start mb-2">
+          <h3 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white line-clamp-2 flex-1 pr-2 min-h-[2.5rem] sm:min-h-[3rem] leading-tight">
+            {plant.name || 'Unnamed Plant'}
+          </h3>
+          <div className="text-right ml-2 flex-shrink-0">
+            <span className="text-base sm:text-lg md:text-xl font-bold text-green-600 dark:text-green-400 whitespace-nowrap">
+              ₹{formattedPrice}
+            </span>
+          </div>
+        </div>
 
-        {/* Category/Section/Variety Tags - FIXED: Show all hierarchy */}
-        <div className="flex flex-wrap gap-1 mb-2">
+        {/* Category Tags - Premium pill design */}
+        <div className="flex flex-wrap gap-1 mb-2 min-h-[2rem]">
           {plant.section && (
-            <span className="inline-block px-1.5 sm:px-2 py-0.5 sm:py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] sm:text-xs rounded-full">
+            <span className="px-2 py-0.5 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-[10px] sm:text-xs rounded-full font-medium border border-green-200 dark:border-green-800">
               {plant.section.name}
             </span>
           )}
           {plant.category && (
-            <span className="inline-block px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-[10px] sm:text-xs rounded-full">
+            <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-[10px] sm:text-xs rounded-full font-medium border border-blue-200 dark:border-blue-800">
               {plant.category.name}
             </span>
           )}
           {plant.variety && (
-            <span className="inline-block px-1.5 sm:px-2 py-0.5 sm:py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-[10px] sm:text-xs rounded-full">
+            <span className="px-2 py-0.5 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 text-[10px] sm:text-xs rounded-full font-medium border border-purple-200 dark:border-purple-800">
               {typeof plant.variety === 'object' ? plant.variety.name : plant.variety}
             </span>
           )}
         </div>
 
-        {/* Description - Only show on larger screens */}
-        <p className="hidden sm:block text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-3 line-clamp-2 min-h-[32px] sm:min-h-[40px]">
+        {/* Description - Premium text style */}
+        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2 min-h-[2rem] sm:min-h-[2.5rem] leading-relaxed">
           {plant.description || 'No description available'}
         </p>
 
-        {/* Actions */}
-        <div className="flex items-center gap-2 mt-2">
+        {/* Action Buttons - Premium design, always visible */}
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-2 mt-auto pt-2">
+          {/* View Details Button - Premium subtle style */}
           <Link
             to={plantDetailUrl}
-            className={`flex-1 text-center px-2 sm:px-3 py-2 sm:py-2.5 rounded-lg transition-all text-xs sm:text-sm font-medium ${inStock
-                ? 'bg-green-600 hover:bg-green-700 text-white shadow-md hover:shadow-lg'
-                : 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300 cursor-not-allowed pointer-events-none'
-              }`}
+            className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-xs sm:text-sm font-medium py-2 sm:py-2.5 rounded-xl transition-all text-center flex items-center justify-center gap-1 border border-gray-200 dark:border-gray-600"
           >
-            View Details
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            <span className="hidden xs:inline">View</span>
           </Link>
 
+          {/* Add to Cart Button - Premium green */}
           <button
-            onClick={() => sendWhatsAppOrder(plant.name)}
+            onClick={handleAddToCart}
             disabled={!inStock}
-            className={`w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center rounded-lg transition-all ${inStock
-                ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 hover:scale-105'
-                : 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
+            className={`text-xs sm:text-sm font-medium py-2 sm:py-2.5 rounded-xl transition-all flex items-center justify-center gap-1 ${inStock
+                ? 'bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white shadow-md hover:shadow-lg'
+                : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
               }`}
-            title={inStock ? "Order on WhatsApp" : "Out of stock"}
-            aria-label="Order on WhatsApp"
           >
-            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.447-1.273.607-1.446c.147-.16.331-.218.532-.218.121 0 .242.011.348.021.121.011.284-.047.446.344.163.391.55 1.347.6 1.444.049.098.081.211.016.338-.065.127-.114.186-.22.301-.105.116-.221.259-.317.348-.106.093-.216.194-.093.38.122.187.546.9 1.169 1.456.806.72 1.485.944 1.696 1.049.211.105.334.087.457-.054.122-.14.526-.615.667-.826.14-.212.28-.177.47-.106.189.07 1.203.567 1.41.67.206.104.343.155.393.242.049.087.049.5-.096.905z" />
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
+            <span className="hidden xs:inline">Cart</span>
           </button>
+
+          {/* Buy Now Button - Premium orange gradient */}
+          <button
+            onClick={handleBuyNow}
+            disabled={!inStock}
+            className={`text-xs sm:text-sm font-medium py-2 sm:py-2.5 rounded-xl transition-all flex items-center justify-center gap-1 ${inStock
+                ? 'bg-gradient-to-r from-orange-500 to-orange-400 hover:from-orange-600 hover:to-orange-500 text-white shadow-md hover:shadow-lg'
+                : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+              }`}
+          >
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <span className="hidden xs:inline">Buy</span>
+          </button>
+        </div>
+
+        {/* Mobile text labels - Only visible on smallest screens */}
+        <div className="grid grid-cols-3 gap-1.5 mt-1 xs:hidden">
+          <span className="text-[8px] text-center text-gray-500">View</span>
+          <span className="text-[8px] text-center text-gray-500">Cart</span>
+          <span className="text-[8px] text-center text-gray-500">Buy</span>
         </div>
       </div>
     </div>
