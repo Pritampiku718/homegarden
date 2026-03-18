@@ -78,7 +78,7 @@ const PlantCard = ({ plant }) => {
   return (
     <div className="group relative bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border border-gray-200 dark:border-gray-700 h-full flex flex-col">
 
-      {/* Image Container - Premium with overlay */}
+      {/* Image Container */}
       <Link to={plantDetailUrl} className="block relative h-48 sm:h-56 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 flex-shrink-0">
         {imgSrc ? (
           <img
@@ -94,10 +94,10 @@ const PlantCard = ({ plant }) => {
           </div>
         )}
 
-        {/* Premium Gradient Overlay */}
+        {/* Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-        {/* Stock Status Badge - Premium style */}
+        {/* Stock Status Badge */}
         {!inStock && (
           <div className="absolute bottom-3 left-3 z-10">
             <span className="px-3 py-1.5 bg-red-500/90 backdrop-blur-sm text-white text-xs font-bold rounded-full shadow-lg border border-red-400/30">
@@ -106,7 +106,7 @@ const PlantCard = ({ plant }) => {
           </div>
         )}
 
-        {/* Image Count Badge - New premium addition */}
+        {/* Image Count Badge */}
         {plant.images && plant.images.length > 1 && (
           <div className="absolute top-3 right-3 z-10">
             <span className="px-2 py-1 bg-black/50 backdrop-blur-sm text-white text-xs rounded-full shadow-lg flex items-center gap-1 border border-white/20">
@@ -119,22 +119,22 @@ const PlantCard = ({ plant }) => {
         )}
       </Link>
 
-      {/* Content - Premium spacing and typography */}
-      <div className="p-4 sm:p-5 flex-1 flex flex-col bg-white dark:bg-gray-800">
-        {/* Plant Name and Price - Premium layout */}
+      {/* Content */}
+      <div className="p-3 sm:p-4 flex-1 flex flex-col bg-white dark:bg-gray-800">
+        {/* Plant Name - FIXED: Full name visible, no truncation */}
         <div className="flex justify-between items-start mb-2">
-          <h3 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white line-clamp-2 flex-1 pr-2 min-h-[2.5rem] sm:min-h-[3rem] leading-tight">
+          <h3 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white break-words pr-2 max-w-[65%]">
             {plant.name || 'Unnamed Plant'}
           </h3>
-          <div className="text-right ml-2 flex-shrink-0">
-            <span className="text-base sm:text-lg md:text-xl font-bold text-green-600 dark:text-green-400 whitespace-nowrap">
+          <div className="text-right flex-shrink-0">
+            <span className="text-sm sm:text-base md:text-lg font-bold text-green-600 dark:text-green-400 whitespace-nowrap">
               ₹{formattedPrice}
             </span>
           </div>
         </div>
 
-        {/* Category Tags - Premium pill design */}
-        <div className="flex flex-wrap gap-1 mb-2 min-h-[2rem]">
+        {/* Category Tags */}
+        <div className="flex flex-wrap gap-1 mb-2">
           {plant.section && (
             <span className="px-2 py-0.5 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-[10px] sm:text-xs rounded-full font-medium border border-green-200 dark:border-green-800">
               {plant.section.name}
@@ -152,61 +152,44 @@ const PlantCard = ({ plant }) => {
           )}
         </div>
 
-        {/* Description - Premium text style */}
-        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2 min-h-[2rem] sm:min-h-[2.5rem] leading-relaxed">
+        {/* Description - 2 lines max */}
+        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2 leading-relaxed">
           {plant.description || 'No description available'}
         </p>
 
-        {/* Action Buttons - Premium design, always visible */}
-        <div className="grid grid-cols-3 gap-1.5 sm:gap-2 mt-auto pt-2">
-          {/* View Details Button - Premium subtle style */}
+        {/* Action Buttons */}
+        <div className="grid grid-cols-3 gap-1 mt-auto pt-2">
+          {/* View Button */}
           <Link
             to={plantDetailUrl}
-            className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-xs sm:text-sm font-medium py-2 sm:py-2.5 rounded-xl transition-all text-center flex items-center justify-center gap-1 border border-gray-200 dark:border-gray-600"
+            className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-xs font-medium py-2 rounded-lg transition-all text-center flex items-center justify-center"
           >
-            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-            <span className="hidden xs:inline">View</span>
+            View
           </Link>
 
-          {/* Add to Cart Button - Premium green */}
+          {/* Cart Button */}
           <button
             onClick={handleAddToCart}
             disabled={!inStock}
-            className={`text-xs sm:text-sm font-medium py-2 sm:py-2.5 rounded-xl transition-all flex items-center justify-center gap-1 ${inStock
-                ? 'bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white shadow-md hover:shadow-lg'
+            className={`text-xs font-medium py-2 rounded-lg transition-all ${inStock
+                ? 'bg-green-600 hover:bg-green-700 text-white'
                 : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
               }`}
           >
-            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-            <span className="hidden xs:inline">Cart</span>
+            Cart
           </button>
 
-          {/* Buy Now Button - Premium orange gradient */}
+          {/* Buy Button */}
           <button
             onClick={handleBuyNow}
             disabled={!inStock}
-            className={`text-xs sm:text-sm font-medium py-2 sm:py-2.5 rounded-xl transition-all flex items-center justify-center gap-1 ${inStock
-                ? 'bg-gradient-to-r from-orange-500 to-orange-400 hover:from-orange-600 hover:to-orange-500 text-white shadow-md hover:shadow-lg'
+            className={`text-xs font-medium py-2 rounded-lg transition-all ${inStock
+                ? 'bg-orange-500 hover:bg-orange-600 text-white'
                 : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
               }`}
           >
-            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-            <span className="hidden xs:inline">Buy</span>
+            Buy
           </button>
-        </div>
-
-        {/* Mobile text labels - Only visible on smallest screens */}
-        <div className="grid grid-cols-3 gap-1.5 mt-1 xs:hidden">
-          <span className="text-[8px] text-center text-gray-500">View</span>
-          <span className="text-[8px] text-center text-gray-500">Cart</span>
-          <span className="text-[8px] text-center text-gray-500">Buy</span>
         </div>
       </div>
     </div>
