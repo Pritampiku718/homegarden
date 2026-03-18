@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom';
 import { sendWhatsAppOrder } from '../utils/whatsapp';
+import { useState } from 'react';
 
 const PlantCard = ({ plant }) => {
+  const [imageError, setImageError] = useState(false);
+
   // Default inStock to true if not specified
   const inStock = plant.inStock !== false;
 
@@ -18,85 +21,121 @@ const PlantCard = ({ plant }) => {
   // Format price with Indian number format
   const formattedPrice = new Intl.NumberFormat('en-IN').format(plant.price || 0);
 
+  // Default image fallback
+  const defaultImage = 'https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=400';
+  const imageUrl = imageError ? defaultImage : (plant.image || defaultImage);
+
   return (
-    <div className="group relative bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700">
+    <div className="group relative bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-200 dark:border-gray-700">
+
       {/* Image Container */}
-      <div className="relative h-48 sm:h-56 overflow-hidden bg-gray-100 dark:bg-gray-700">
+      <div className="relative h-40 xs:h-44 sm:h-48 md:h-56 overflow-hidden bg-gray-100 dark:bg-gray-700">
         <img
-          src={plant.image || 'https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=400'}
-          alt={plant.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          src={imageUrl}
+          alt={plant.name || 'Plant'}
+          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
           loading="lazy"
-          onError={(e) => {
-            e.target.src = 'https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=400';
-          }}
+          onError={() => setImageError(true)}
         />
 
-        {/* Stock Badge */}
+        {/* Gradient Overlay - Improves text visibility on hover */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+        {/* Stock Badge - Mobile Optimized */}
         {!inStock && (
-          <div className="absolute top-3 left-3">
-            <span className="px-3 py-1.5 bg-red-500 text-white text-xs font-bold rounded-full shadow-lg">
+          <div className="absolute top-2 left-2 sm:top-3 sm:left-3">
+            <span className="px-2 sm:px-3 py-1 sm:py-1.5 bg-red-500 text-white text-xs font-bold rounded-full shadow-lg">
               OUT OF STOCK
             </span>
           </div>
         )}
 
-        {/* Price Badge */}
-        <div className="absolute top-3 right-3">
-          <span className="px-3 py-1.5 bg-green-600 text-white font-bold rounded-full shadow-lg text-sm">
+        {/* Price Badge - Mobile Optimized */}
+        <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
+          <span className="px-2 sm:px-3 py-1 sm:py-1.5 bg-green-600 text-white font-bold rounded-full shadow-lg text-xs sm:text-sm">
             ₹{formattedPrice}
+          </span>
+        </div>
+
+        {/* Quick View Badge - Appears on hover */}
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <span className="px-3 py-1.5 bg-white/90 dark:bg-gray-900/90 text-green-600 dark:text-green-400 text-xs font-semibold rounded-full backdrop-blur-sm">
+            Quick View
           </span>
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-4">
+      <div className="p-3 sm:p-4">
         {/* Plant Name */}
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 line-clamp-1">
-          {plant.name}
+        <h3 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white mb-1 line-clamp-1">
+          {plant.name || 'Unnamed Plant'}
         </h3>
 
-        {/* Category/Section Tags */}
+        {/* Category/Section Tags - Mobile Optimized */}
         <div className="flex flex-wrap gap-1 mb-2">
           {plant.section && (
-            <span className="inline-block px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full">
+            <span className="inline-block px-1.5 sm:px-2 py-0.5 sm:py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] sm:text-xs rounded-full">
               {plant.section.name}
             </span>
           )}
           {plant.category && (
-            <span className="inline-block px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs rounded-full">
+            <span className="inline-block px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-[10px] sm:text-xs rounded-full">
               {plant.category.name}
             </span>
           )}
         </div>
 
-        {/* Description - Hidden on mobile to save space, shown on desktop */}
-        <p className="hidden sm:block text-sm text-gray-600 dark:text-gray-300 mb-4 line-clamp-2 min-h-[40px]">
+        {/* Description - Hidden on mobile, shown on tablet and up */}
+        <p className="hidden sm:block text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-3 line-clamp-2 min-h-[32px] sm:min-h-[40px]">
           {plant.description || 'No description available'}
         </p>
 
+        {/* Mobile-only quick info */}
+        <div className="flex sm:hidden items-center justify-between mb-2">
+          <span className="text-xs text-gray-500 dark:text-gray-400">
+            {plant.description ? 'Available' : 'In stock'}
+          </span>
+          <span className="text-xs font-medium text-green-600 dark:text-green-400">
+            View →
+          </span>
+        </div>
+
         {/* Actions - Fixed button layout */}
-        <div className="flex items-center gap-2 mt-2">
+        <div className="flex items-center gap-2">
           <Link
             to={plantDetailUrl}
-            className="flex-1 bg-green-600 hover:bg-green-700 text-white text-center px-3 py-2.5 rounded-lg transition-colors text-sm font-medium"
+            className={`flex-1 text-center px-2 sm:px-3 py-2 sm:py-2.5 rounded-lg transition-all text-xs sm:text-sm font-medium ${inStock
+                ? 'bg-green-600 hover:bg-green-700 text-white shadow-md hover:shadow-lg'
+                : 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300 cursor-not-allowed pointer-events-none'
+              }`}
           >
             View Details
           </Link>
+
           <button
             onClick={() => sendWhatsAppOrder(plant.name)}
             disabled={!inStock}
-            className={`w-12 h-11 flex items-center justify-center rounded-lg transition-colors ${inStock
-                ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50'
+            className={`w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center rounded-lg transition-all ${inStock
+                ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 hover:scale-105'
                 : 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
               }`}
             title={inStock ? "Order on WhatsApp" : "Out of stock"}
+            aria-label="Order on WhatsApp"
           >
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.447-1.273.607-1.446c.147-.16.331-.218.532-.218.121 0 .242.011.348.021.121.011.284-.047.446.344.163.391.55 1.347.6 1.444.049.098.081.211.016.338-.065.127-.114.186-.22.301-.105.116-.221.259-.317.348-.106.093-.216.194-.093.38.122.187.546.9 1.169 1.456.806.72 1.485.944 1.696 1.049.211.105.334.087.457-.054.122-.14.526-.615.667-.826.14-.212.28-.177.47-.106.189.07 1.203.567 1.41.67.206.104.343.155.393.242.049.087.049.5-.096.905z" />
             </svg>
           </button>
         </div>
+
+        {/* Stock Status Indicator - Mobile only */}
+        {inStock && (
+          <div className="mt-2 flex sm:hidden items-center gap-1">
+            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+            <span className="text-xs text-green-600 dark:text-green-400">In stock</span>
+          </div>
+        )}
       </div>
     </div>
   );

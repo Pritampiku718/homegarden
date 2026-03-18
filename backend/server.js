@@ -29,7 +29,7 @@ console.log("=".repeat(60));
 // Import routes (after env vars are loaded)
 import sectionRoutes from "./routes/sectionRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
-import subCategoryRoutes from "./routes/subCategoryRoutes.js";
+import varietyRoutes from "./routes/varietyRoutes.js"; // Changed from subCategoryRoutes
 import plantRoutes from "./routes/plantRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import cloudinaryRoutes from "./routes/cloudinaryRoutes.js";
@@ -90,7 +90,7 @@ if (process.env.NODE_ENV !== "production") {
 // API Routes
 app.use("/api/sections", sectionRoutes);
 app.use("/api/categories", categoryRoutes);
-app.use("/api/subcategories", subCategoryRoutes);
+app.use("/api/varieties", varietyRoutes); // Changed from /api/subcategories
 app.use("/api/plants", plantRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/cloudinary", cloudinaryRoutes);
@@ -113,7 +113,7 @@ app.get("/health", (req, res) => {
     endpoints: {
       sections: "/api/sections",
       categories: "/api/categories",
-      subcategories: "/api/subcategories",
+      varieties: "/api/varieties", // Changed from subcategories
       plants: "/api/plants",
       users: "/api/users",
       cloudinary: "/api/cloudinary",
@@ -135,7 +135,7 @@ app.get("/", (req, res) => {
     endpoints: {
       sections: "/api/sections",
       categories: "/api/categories",
-      subcategories: "/api/subcategories",
+      varieties: "/api/varieties", // Changed from subcategories
       plants: "/api/plants",
       users: "/api/users",
       cloudinary: "/api/cloudinary",
@@ -302,7 +302,7 @@ const server = app.listen(PORT, () => {
     console.log("📌 Available endpoints:");
     console.log("   • /api/sections");
     console.log("   • /api/categories");
-    console.log("   • /api/subcategories");
+    console.log("   • /api/varieties"); // Changed from subcategories
     console.log("   • /api/plants");
     console.log("   • /api/users");
     console.log("   • /api/cloudinary");

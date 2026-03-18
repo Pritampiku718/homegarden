@@ -1,7 +1,7 @@
 import Plant from "../models/Plant.js";
 import Category from "../models/Category.js";
 import Section from "../models/Section.js";
-import SubCategory from "../models/SubCategory.js";
+import Variety from "../models/Variety.js"; // Changed from SubCategory to Variety
 import slugify from "slugify";
 import mongoose from "mongoose";
 
@@ -10,7 +10,7 @@ import mongoose from "mongoose";
 // @access  Public
 export const getPlants = async (req, res) => {
   try {
-    const { category, section, subCategory, page = 1, limit = 20 } = req.query;
+    const { category, section, variety, page = 1, limit = 20 } = req.query; // Changed subCategory to variety
 
     // Build query
     const query = {};
@@ -52,18 +52,18 @@ export const getPlants = async (req, res) => {
       }
     }
 
-    // Handle subCategory filter
-    if (subCategory) {
-      const isValidObjectId = mongoose.Types.ObjectId.isValid(subCategory);
+    // Handle variety filter (changed from subCategory)
+    if (variety) {
+      const isValidObjectId = mongoose.Types.ObjectId.isValid(variety);
 
       if (isValidObjectId) {
-        query.subCategory = subCategory;
+        query.variety = variety; // Changed from subCategory to variety
       } else {
-        const subCategoryDoc = await SubCategory.findOne({ slug: subCategory });
-        if (subCategoryDoc) {
-          query.subCategory = subCategoryDoc._id;
+        const varietyDoc = await Variety.findOne({ slug: variety }); // Changed to Variety
+        if (varietyDoc) {
+          query.variety = varietyDoc._id; // Changed from subCategory to variety
         } else {
-          // If subCategory slug doesn't exist, return empty array
+          // If variety slug doesn't exist, return empty array
           return res.json({
             success: true,
             count: 0,
@@ -79,7 +79,7 @@ export const getPlants = async (req, res) => {
     const plants = await Plant.find(query)
       .populate("section", "name slug")
       .populate("category", "name slug")
-      .populate("subCategory", "name slug")
+      .populate("variety", "name slug") // Changed from subCategory to variety
       .sort({ name: 1 })
       .limit(parseInt(limit))
       .skip((parseInt(page) - 1) * parseInt(limit));
@@ -111,7 +111,7 @@ export const getPlantById = async (req, res) => {
     const plant = await Plant.findById(req.params.id)
       .populate("section", "name slug")
       .populate("category", "name slug")
-      .populate("subCategory", "name slug");
+      .populate("variety", "name slug"); // Changed from subCategory to variety
 
     if (!plant) {
       return res.status(404).json({
@@ -140,7 +140,7 @@ export const getPlantBySlug = async (req, res) => {
     const plant = await Plant.findOne({ slug: req.params.slug })
       .populate("section", "name slug")
       .populate("category", "name slug")
-      .populate("subCategory", "name slug");
+      .populate("variety", "name slug"); // Changed from subCategory to variety
 
     if (!plant) {
       return res.status(404).json({
@@ -149,18 +149,18 @@ export const getPlantBySlug = async (req, res) => {
       });
     }
 
-    // Get related plants (same category or subCategory)
+    // Get related plants (same category or variety)
     const relatedPlants = await Plant.find({
       $or: [
         { category: plant.category._id },
-        { subCategory: plant.subCategory?._id },
+        { variety: plant.variety?._id }, // Changed from subCategory to variety
       ],
       _id: { $ne: plant._id },
     })
       .limit(4)
-      .select("name slug price images section category subCategory")
+      .select("name slug price images section category variety") // Changed subCategory to variety
       .populate("category", "name")
-      .populate("subCategory", "name");
+      .populate("variety", "name"); // Changed from subCategory to variety
 
     res.json({
       success: true,
@@ -207,7 +207,7 @@ export const getPlantsBySection = async (req, res) => {
 
     const plants = await Plant.find({ section: sectionQuery._id })
       .populate("category", "name slug")
-      .populate("subCategory", "name slug")
+      .populate("variety", "name slug") // Changed from subCategory to variety
       .sort({ name: 1 })
       .limit(parseInt(limit))
       .skip((parseInt(page) - 1) * parseInt(limit));
@@ -260,7 +260,7 @@ export const getPlantsByCategory = async (req, res) => {
 
     const plants = await Plant.find({ category: categoryQuery._id })
       .populate("section", "name slug")
-      .populate("subCategory", "name slug")
+      .populate("variety", "name slug") // Changed from subCategory to variety
       .sort({ name: 1 })
       .limit(parseInt(limit))
       .skip((parseInt(page) - 1) * parseInt(limit));
@@ -283,22 +283,23 @@ export const getPlantsByCategory = async (req, res) => {
   }
 };
 
-// @desc    Get plants by subCategory
-// @route   GET /api/plants/subcategory/:subCategoryId
+// @desc    Get plants by variety
+// @route   GET /api/plants/variety/:varietyId
 // @access  Public
-export const getPlantsBySubCategory = async (req, res) => {
+export const getPlantsByVariety = async (req, res) => {
+  // Renamed function
   try {
-    const { subCategoryId } = req.params;
+    const { varietyId } = req.params; // Changed param name
     const { page = 1, limit = 20 } = req.query;
 
-    let subCategoryQuery = {};
+    let varietyQuery = {};
 
-    if (mongoose.Types.ObjectId.isValid(subCategoryId)) {
-      subCategoryQuery._id = subCategoryId;
+    if (mongoose.Types.ObjectId.isValid(varietyId)) {
+      varietyQuery._id = varietyId;
     } else {
-      const subCategory = await SubCategory.findOne({ slug: subCategoryId });
-      if (subCategory) {
-        subCategoryQuery._id = subCategory._id;
+      const variety = await Variety.findOne({ slug: varietyId }); // Changed to Variety
+      if (variety) {
+        varietyQuery._id = variety._id;
       } else {
         return res.json({
           success: true,
@@ -311,7 +312,7 @@ export const getPlantsBySubCategory = async (req, res) => {
       }
     }
 
-    const plants = await Plant.find({ subCategory: subCategoryQuery._id })
+    const plants = await Plant.find({ variety: varietyQuery._id }) // Changed from subCategory to variety
       .populate("section", "name slug")
       .populate("category", "name slug")
       .sort({ name: 1 })
@@ -319,7 +320,7 @@ export const getPlantsBySubCategory = async (req, res) => {
       .skip((parseInt(page) - 1) * parseInt(limit));
 
     const total = await Plant.countDocuments({
-      subCategory: subCategoryQuery._id,
+      variety: varietyQuery._id, // Changed from subCategory to variety
     });
 
     res.json({
@@ -343,8 +344,15 @@ export const getPlantsBySubCategory = async (req, res) => {
 // @access  Private/Admin
 export const createPlant = async (req, res) => {
   try {
-    const { name, price, description, images, section, category, subCategory } =
-      req.body;
+    const {
+      name,
+      price,
+      description,
+      images,
+      section,
+      category,
+      variety,
+    } = req.body; // Changed subCategory to variety
 
     console.log("📦 Creating plant with data:", {
       name,
@@ -353,7 +361,7 @@ export const createPlant = async (req, res) => {
       images,
       section,
       category,
-      subCategory,
+      variety, // Updated
     });
 
     // Validate required fields
@@ -410,18 +418,19 @@ export const createPlant = async (req, res) => {
       });
     }
 
-    // Verify subCategory if provided
-    if (subCategory) {
-      const subCategoryExists = await SubCategory.findOne({
-        _id: subCategory,
+    // Verify variety if provided (changed from subCategory)
+    if (variety) {
+      const varietyExists = await Variety.findOne({
+        // Changed to Variety
+        _id: variety,
         category: category,
         section: section,
       });
 
-      if (!subCategoryExists) {
+      if (!varietyExists) {
         return res.status(400).json({
           success: false,
-          message: "Sub-category not found in this category",
+          message: "Variety not found in this category", // Updated message
         });
       }
     }
@@ -450,10 +459,10 @@ export const createPlant = async (req, res) => {
       images: processedImages,
       section,
       category,
-      subCategory: subCategory || null,
+      variety: variety || null, // Changed from subCategory to variety
     });
 
-    await plant.populate(["section", "category", "subCategory"]);
+    await plant.populate(["section", "category", "variety"]); // Updated
 
     console.log("✅ Plant created:", plant._id);
 
@@ -494,8 +503,15 @@ export const createPlant = async (req, res) => {
 // @access  Private/Admin
 export const updatePlant = async (req, res) => {
   try {
-    const { name, price, description, images, section, category, subCategory } =
-      req.body;
+    const {
+      name,
+      price,
+      description,
+      images,
+      section,
+      category,
+      variety,
+    } = req.body; // Changed subCategory to variety
 
     console.log("📦 Updating plant:", req.params.id, req.body);
 
@@ -554,18 +570,19 @@ export const updatePlant = async (req, res) => {
       }
     }
 
-    // Verify subCategory if provided
-    if (subCategory) {
-      const subCategoryExists = await SubCategory.findOne({
-        _id: subCategory,
+    // Verify variety if provided (changed from subCategory)
+    if (variety) {
+      const varietyExists = await Variety.findOne({
+        // Changed to Variety
+        _id: variety,
         ...(category && { category }),
         ...(section && { section }),
       });
 
-      if (!subCategoryExists) {
+      if (!varietyExists) {
         return res.status(400).json({
           success: false,
-          message: "Sub-category not found",
+          message: "Variety not found", // Updated message
         });
       }
     }
@@ -601,7 +618,7 @@ export const updatePlant = async (req, res) => {
     }
     if (section) updateData.section = section;
     if (category) updateData.category = category;
-    if (subCategory !== undefined) updateData.subCategory = subCategory || null;
+    if (variety !== undefined) updateData.variety = variety || null; // Changed from subCategory to variety
 
     const updatedPlant = await Plant.findByIdAndUpdate(
       req.params.id,
@@ -610,7 +627,7 @@ export const updatePlant = async (req, res) => {
         new: true,
         runValidators: true,
       },
-    ).populate(["section", "category", "subCategory"]);
+    ).populate(["section", "category", "variety"]); // Updated
 
     console.log("✅ Plant updated:", updatedPlant._id);
 

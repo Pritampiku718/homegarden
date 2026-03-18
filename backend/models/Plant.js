@@ -11,7 +11,6 @@ const plantSchema = new mongoose.Schema(
       type: String,
       required: true,
       lowercase: true,
-      // REMOVE index: true from here - we'll use schema.index() instead
     },
     price: {
       type: Number,
@@ -22,7 +21,6 @@ const plantSchema = new mongoose.Schema(
       type: String,
       required: [true, "Description is required"],
     },
-    // Updated to images array
     images: [
       {
         url: {
@@ -52,9 +50,9 @@ const plantSchema = new mongoose.Schema(
       ref: "Category",
       required: [true, "Category is required"],
     },
-    subCategory: {
+    variety: {  // Changed from subCategory to variety
       type: mongoose.Schema.Types.ObjectId,
-      ref: "SubCategory",
+      ref: "Variety",  // Updated reference
       default: null,
     },
   },
@@ -63,9 +61,9 @@ const plantSchema = new mongoose.Schema(
   },
 );
 
-// Define indexes here - ONCE
-plantSchema.index({ section: 1, category: 1, subCategory: 1 });
-plantSchema.index({ slug: 1 }, { unique: true }); // Keep this one, remove from field
+// Define indexes
+plantSchema.index({ section: 1, category: 1, variety: 1 }); // Updated index
+plantSchema.index({ slug: 1 }, { unique: true });
 
 // Validate that at least 1 and at most 3 images
 plantSchema.path("images").validate(function (images) {
@@ -83,7 +81,7 @@ plantSchema.pre("save", function (next) {
   next();
 });
 
-// Also handle updates
+// Handle updates
 plantSchema.pre("findOneAndUpdate", function (next) {
   const update = this.getUpdate();
   if (update.images && update.images.length > 0) {

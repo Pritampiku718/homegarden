@@ -1,10 +1,10 @@
 import mongoose from "mongoose";
 
-const subCategorySchema = new mongoose.Schema(
+const varietySchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: [true, "Sub-category name is required"],
+      required: [true, "Variety name is required"],
       trim: true,
     },
     slug: {
@@ -34,5 +34,18 @@ const subCategorySchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-subCategorySchema.index({ name: 1, category: 1 }, { unique: true });
-export default mongoose.model("SubCategory", subCategorySchema);
+varietySchema.index({ name: 1, category: 1 }, { unique: true });
+
+// Generate slug before saving
+varietySchema.pre('save', function(next) {
+  if (this.isModified('name')) {
+    this.slug = this.name.toLowerCase()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/--+/g, '-')
+      .trim();
+  }
+  next();
+});
+
+export default mongoose.model("Variety", varietySchema);
