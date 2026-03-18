@@ -157,12 +157,12 @@ const PlantCard = ({ plant }) => {
           </span>
         </div>
 
-        {/* Action Buttons - Fixed with proper padding */}
+        {/* Action Buttons - Fixed sizing and spacing */}
         <div className="grid grid-cols-3 gap-2 sm:gap-3">
           {/* View Button - Premium Purple */}
           <Link
             to={plantDetailUrl}
-            className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white text-sm sm:text-base font-medium py-2.5 sm:py-3 px-3 rounded-xl transition-all duration-300 text-center flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg transform hover:scale-105"
+            className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white text-sm sm:text-base font-medium py-2.5 sm:py-3 px-1 rounded-xl transition-all duration-300 text-center flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg transform hover:scale-105"
           >
             <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -175,7 +175,7 @@ const PlantCard = ({ plant }) => {
           <button
             onClick={handleAddToCart}
             disabled={!inStock}
-            className={`text-sm sm:text-base font-medium py-2.5 sm:py-3 px-3 rounded-xl transition-all duration-300 flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg transform hover:scale-105 ${inStock
+            className={`text-sm sm:text-base font-medium py-2.5 sm:py-3 px-1 rounded-xl transition-all duration-300 flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg transform hover:scale-105 ${inStock
                 ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white'
                 : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
               }`}
@@ -190,7 +190,7 @@ const PlantCard = ({ plant }) => {
           <button
             onClick={handleBuyNow}
             disabled={!inStock}
-            className={`text-sm sm:text-base font-medium py-2.5 sm:py-3 px-3 rounded-xl transition-all duration-300 flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg transform hover:scale-105 ${inStock
+            className={`text-sm sm:text-base font-medium py-2.5 sm:py-3 px-1 rounded-xl transition-all duration-300 flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg transform hover:scale-105 ${inStock
                 ? 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white'
                 : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
               }`}
