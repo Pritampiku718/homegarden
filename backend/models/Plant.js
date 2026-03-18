@@ -50,9 +50,9 @@ const plantSchema = new mongoose.Schema(
       ref: "Category",
       required: [true, "Category is required"],
     },
-    variety: {  // Changed from subCategory to variety
+    variety: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Variety",  // Updated reference
+      ref: "Variety",
       default: null,
     },
   },
@@ -62,7 +62,7 @@ const plantSchema = new mongoose.Schema(
 );
 
 // Define indexes
-plantSchema.index({ section: 1, category: 1, variety: 1 }); // Updated index
+plantSchema.index({ section: 1, category: 1, variety: 1 });
 plantSchema.index({ slug: 1 }, { unique: true });
 
 // Validate that at least 1 and at most 3 images
@@ -70,27 +70,44 @@ plantSchema.path("images").validate(function (images) {
   return images && images.length >= 1 && images.length <= 3;
 }, "Plants must have between 1 and 3 images");
 
-// Set first image as main if none is marked
+// Set first image as main if none is marked - FIXED VERSION
 plantSchema.pre("save", function (next) {
-  if (this.images && this.images.length > 0) {
-    const hasMain = this.images.some((img) => img.isMain === true);
-    if (!hasMain) {
-      this.images[0].isMain = true;
+  try {
+    if (this.images && this.images.length > 0) {
+      const hasMain = this.images.some((img) => img.isMain === true);
+      if (!hasMain) {
+        this.images[0].isMain = true;
+      }
+    }
+    // Make sure next is a function before calling
+    if (typeof next === "function") {
+      return next();
+    }
+  } catch (error) {
+    if (typeof next === "function") {
+      return next(error);
     }
   }
-  next();
 });
 
-// Handle updates
+// Handle updates - FIXED VERSION
 plantSchema.pre("findOneAndUpdate", function (next) {
-  const update = this.getUpdate();
-  if (update.images && update.images.length > 0) {
-    const hasMain = update.images.some((img) => img.isMain === true);
-    if (!hasMain) {
-      update.images[0].isMain = true;
+  try {
+    const update = this.getUpdate();
+    if (update.images && update.images.length > 0) {
+      const hasMain = update.images.some((img) => img.isMain === true);
+      if (!hasMain) {
+        update.images[0].isMain = true;
+      }
+    }
+    if (typeof next === "function") {
+      return next();
+    }
+  } catch (error) {
+    if (typeof next === "function") {
+      return next(error);
     }
   }
-  next();
 });
 
 export default mongoose.model("Plant", plantSchema);
