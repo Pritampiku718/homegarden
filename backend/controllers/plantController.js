@@ -158,7 +158,7 @@ export const getPlantBySlug = async (req, res) => {
       _id: { $ne: plant._id },
     })
       .limit(4)
-      .select("name slug price image section category subCategory")
+      .select("name slug price images section category subCategory")
       .populate("category", "name")
       .populate("subCategory", "name");
 
@@ -343,8 +343,50 @@ export const getPlantsBySubCategory = async (req, res) => {
 // @access  Private/Admin
 export const createPlant = async (req, res) => {
   try {
-    const { name, price, description, image, section, category, subCategory } =
+    const { name, price, description, images, section, category, subCategory } =
       req.body;
+
+    console.log("📦 Creating plant with data:", {
+      name,
+      price,
+      description,
+      images,
+      section,
+      category,
+      subCategory,
+    });
+
+    // Validate required fields
+    if (!name || !price || !description || !section || !category) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Missing required fields: name, price, description, section, category are required",
+      });
+    }
+
+    // Validate images (1-3 images)
+    if (
+      !images ||
+      !Array.isArray(images) ||
+      images.length < 1 ||
+      images.length > 3
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Please upload between 1 and 3 images",
+      });
+    }
+
+    // Validate each image has URL
+    for (const img of images) {
+      if (!img.url) {
+        return res.status(400).json({
+          success: false,
+          message: "Each image must have a URL",
+        });
+      }
+    }
 
     // Verify section exists
     const sectionExists = await Section.findById(section);
@@ -393,12 +435,19 @@ export const createPlant = async (req, res) => {
       slug = `${slug}-${Date.now()}`;
     }
 
+    // Set first image as main if none is marked
+    const processedImages = images.map((img, index) => ({
+      url: img.url,
+      publicId: img.publicId || "",
+      isMain: img.isMain || index === 0,
+    }));
+
     const plant = await Plant.create({
       name,
       slug,
       price,
       description,
-      image,
+      images: processedImages,
       section,
       category,
       subCategory: subCategory || null,
@@ -406,12 +455,33 @@ export const createPlant = async (req, res) => {
 
     await plant.populate(["section", "category", "subCategory"]);
 
+    console.log("✅ Plant created:", plant._id);
+
     res.status(201).json({
       success: true,
       data: plant,
     });
   } catch (error) {
-    console.error("Create plant error:", error);
+    console.error("❌ Create plant error:", error);
+
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: "Validation error",
+        errors: Object.keys(error.errors).map((key) => ({
+          field: key,
+          message: error.errors[key].message,
+        })),
+      });
+    }
+
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: "A plant with this name already exists",
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: error.message,
@@ -424,8 +494,39 @@ export const createPlant = async (req, res) => {
 // @access  Private/Admin
 export const updatePlant = async (req, res) => {
   try {
-    const { name, price, description, image, section, category, subCategory } =
+    const { name, price, description, images, section, category, subCategory } =
       req.body;
+
+    console.log("📦 Updating plant:", req.params.id, req.body);
+
+    // Find existing plant
+    const plant = await Plant.findById(req.params.id);
+    if (!plant) {
+      return res.status(404).json({
+        success: false,
+        message: "Plant not found",
+      });
+    }
+
+    // Validate images if provided (1-3 images)
+    if (images) {
+      if (!Array.isArray(images) || images.length < 1 || images.length > 3) {
+        return res.status(400).json({
+          success: false,
+          message: "Please upload between 1 and 3 images",
+        });
+      }
+
+      // Validate each image has URL
+      for (const img of images) {
+        if (!img.url) {
+          return res.status(400).json({
+            success: false,
+            message: "Each image must have a URL",
+          });
+        }
+      }
+    }
 
     // Verify section exists if provided
     if (section) {
@@ -471,7 +572,7 @@ export const updatePlant = async (req, res) => {
 
     // Generate new slug if name changed
     let slug;
-    if (name) {
+    if (name && name !== plant.name) {
       slug = slugify(name, { lower: true, strict: true });
 
       // Check if new slug conflicts with another plant
@@ -490,29 +591,47 @@ export const updatePlant = async (req, res) => {
     if (slug) updateData.slug = slug;
     if (price) updateData.price = price;
     if (description) updateData.description = description;
-    if (image) updateData.image = image;
+    if (images) {
+      // Set first image as main if none is marked
+      updateData.images = images.map((img, index) => ({
+        url: img.url,
+        publicId: img.publicId || "",
+        isMain: img.isMain || index === 0,
+      }));
+    }
     if (section) updateData.section = section;
     if (category) updateData.category = category;
     if (subCategory !== undefined) updateData.subCategory = subCategory || null;
 
-    const plant = await Plant.findByIdAndUpdate(req.params.id, updateData, {
-      new: true,
-      runValidators: true,
-    }).populate(["section", "category", "subCategory"]);
+    const updatedPlant = await Plant.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      {
+        new: true,
+        runValidators: true,
+      },
+    ).populate(["section", "category", "subCategory"]);
 
-    if (!plant) {
-      return res.status(404).json({
-        success: false,
-        message: "Plant not found",
-      });
-    }
+    console.log("✅ Plant updated:", updatedPlant._id);
 
     res.json({
       success: true,
-      data: plant,
+      data: updatedPlant,
     });
   } catch (error) {
-    console.error("Update plant error:", error);
+    console.error("❌ Update plant error:", error);
+
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: "Validation error",
+        errors: Object.keys(error.errors).map((key) => ({
+          field: key,
+          message: error.errors[key].message,
+        })),
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: error.message,
