@@ -39,15 +39,16 @@ const AdminDashboard = () => {
         await Promise.all([
           api.get("/sections"),
           api.get("/categories"),
-          api.get("/varieties"), // FIXED: changed from /subcategories
-          api.get("/plants"),
+          api.get("/varieties"),
+          api.get("/plants", { params: { limit: 1 } }), // Add limit=1 to get total count efficiently
         ]);
 
       const newStats = {
         sections: sectionsRes.data.data?.length || 0,
         categories: categoriesRes.data.data?.length || 0,
         varieties: varietiesRes.data.data?.length || 0,
-        plants: plantsRes.data.data?.length || 0,
+        // Use total from response instead of data.length
+        plants: plantsRes.data.total || plantsRes.data.data?.length || 0,
       };
 
       setStats(newStats);
@@ -485,7 +486,7 @@ const AdminDashboard = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Plants: {stats.plants}</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Plants: <span className="font-bold text-orange-600 dark:text-orange-400">{stats.plants}</span></span>
                 </div>
               </div>
               <div className="text-xs text-gray-500 dark:text-gray-500">
