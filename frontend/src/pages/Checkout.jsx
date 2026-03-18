@@ -17,6 +17,7 @@ const Checkout = () => {
   });
   const [deliveryInfo, setDeliveryInfo] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [pincodeLoading, setPincodeLoading] = useState(false); // NEW: For pincode lookup
   const [error, setError] = useState('');
   const [paymentType, setPaymentType] = useState('full');
 
@@ -32,15 +33,61 @@ const Checkout = () => {
     }
   }, [cart.length, navigate]);
 
-  // Fetch delivery info when pincode changes
+  // Fetch delivery info AND pincode details when pincode changes
   useEffect(() => {
     if (formData.pincode.length === 6) {
       fetchDeliveryInfo();
+      fetchPincodeDetails(); // NEW: Auto-fill city when pincode is entered
     } else {
       setDeliveryInfo(null);
       setError('');
     }
   }, [formData.pincode, plantsTotal]);
+
+  // NEW: Fetch city from pincode using your backend API
+  const fetchPincodeDetails = async () => {
+    setPincodeLoading(true);
+    try {
+      console.log('📍 Fetching pincode details for:', formData.pincode);
+
+      // Call your backend API endpoint
+      const res = await api.get(`/pincode/${formData.pincode}`);
+
+      console.log('📦 Pincode details response:', res.data);
+
+      // Auto-fill the city field with the district name
+      if (res.data.city) {
+        setFormData(prev => ({
+          ...prev,
+          city: res.data.city
+        }));
+        console.log('✅ City auto-filled:', res.data.city);
+      }
+
+    } catch (err) {
+      console.error('❌ Pincode lookup error:', err);
+
+      // More detailed error logging
+      if (err.response) {
+        console.error('Error response:', err.response.data);
+        console.error('Error status:', err.response.status);
+
+        // If pincode not found, show a helpful message but don't block checkout
+        if (err.response.status === 404) {
+          console.log('ℹ️ Pincode not found in database. User can enter city manually.');
+        }
+      } else if (err.request) {
+        console.error('No response received:', err.request);
+      } else {
+        console.error('Error:', err.message);
+      }
+
+      // Don't show error to user, just log it
+      // City field remains editable for manual entry
+    } finally {
+      setPincodeLoading(false);
+    }
+  };
 
   const fetchDeliveryInfo = async () => {
     setLoading(true);
@@ -340,15 +387,22 @@ const Checkout = () => {
                 onChange={handleChange}
                 className="w-full p-3 border rounded focus:ring-2 focus:ring-green-500 focus:border-transparent"
               />
-              <input
-                type="text"
-                name="pincode"
-                placeholder="PIN Code * (6 digits)"
-                value={formData.pincode}
-                onChange={handleChange}
-                maxLength="6"
-                className="w-full p-3 border rounded focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  name="pincode"
+                  placeholder="PIN Code * (6 digits)"
+                  value={formData.pincode}
+                  onChange={handleChange}
+                  maxLength="6"
+                  className="w-full p-3 border rounded focus:ring-2 focus:ring-green-500 focus:border-transparent pr-10"
+                />
+                {pincodeLoading && (
+                  <div className="absolute right-3 top-3">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600"></div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {loading && (
@@ -384,7 +438,7 @@ const Checkout = () => {
             )}
 
             <p className="text-xs text-gray-500 mt-2">
-              * Required fields. Enter your 6-digit pincode to check delivery availability.
+              * Required fields. Enter your 6-digit pincode to auto-fill city and check delivery availability.
             </p>
           </div>
         </div>

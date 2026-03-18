@@ -36,6 +36,7 @@ import cloudinaryRoutes from "./routes/cloudinaryRoutes.js";
 import deliveryRoutes from "./routes/deliveryRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
+import pincodeRoutes from "./routes/pincodeRoutes.js";
 
 // Initialize express
 const app = express();
@@ -96,6 +97,7 @@ app.use("/api/cloudinary", cloudinaryRoutes);
 app.use("/api/delivery", deliveryRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/pincode", pincodeRoutes);
 
 // Health check route
 app.get("/health", (req, res) => {
@@ -118,6 +120,7 @@ app.get("/health", (req, res) => {
       delivery: "/api/delivery/:pincode",
       payment: "/api/payment",
       orders: "/api/orders",
+      pincode: "/api/pincode/:pincode",
     },
   });
 });
@@ -140,6 +143,7 @@ app.get("/", (req, res) => {
       payment: "/api/payment",
       orders: "/api/orders",
       health: "/health",
+      pincode: "/api/pincode/:pincode",
     },
     cors: {
       allowedOrigins,
