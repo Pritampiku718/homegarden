@@ -39,9 +39,9 @@ const Home = () => {
       // Get first 6 plants as featured (you can add a 'featured' flag in your plant model later)
       setFeaturedPlants(allPlants.slice(0, 6));
 
-      // Fetch counts for stats
+      // Fetch counts for stats - FIXED: changed from /subcategories to /varieties
       const categoriesRes = await api.get('/categories');
-      const varietiesRes = await api.get('/subcategories');
+      const varietiesRes = await api.get('/varieties');
 
       setStats({
         plants: allPlants.length,
