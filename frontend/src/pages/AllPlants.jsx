@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // Add this import
+import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import api from '../services/api';
 import PlantCard from '../components/PlantCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
-import { useCart } from '../contexts/CartContext'; // Add cart context
+import { useCart } from '../contexts/CartContext';
 
 const AllPlants = () => {
-  const navigate = useNavigate(); // Add navigate
-  const { addToCart } = useCart(); // Add cart function
+  const navigate = useNavigate();
+  const { addToCart } = useCart();
   const [plants, setPlants] = useState([]);
   const [filteredPlants, setFilteredPlants] = useState([]);
   const [sections, setSections] = useState([]);
@@ -98,7 +98,7 @@ const AllPlants = () => {
         api.get('/plants'),
         api.get('/sections'),
         api.get('/categories'),
-        api.get('/subcategories')
+        api.get('/varieties') // 👈 FIXED: changed from '/subcategories' to '/varieties'
       ]);
 
       setPlants(plantsRes.data.data || []);
@@ -590,8 +590,8 @@ const AllPlants = () => {
                     onClick={() => handleWhatsAppOrder(plant)}
                     disabled={plant.inStock === false}
                     className={`absolute top-2 right-2 p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-lg z-10 ${plant.inStock === false
-                        ? 'bg-gray-400 cursor-not-allowed'
-                        : 'bg-green-500 hover:bg-green-600'
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-green-500 hover:bg-green-600'
                       }`}
                     title={plant.inStock ? "Buy Now" : "Out of Stock"}
                   >
