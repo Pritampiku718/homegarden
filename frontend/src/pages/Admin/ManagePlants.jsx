@@ -17,6 +17,9 @@ const ManagePlants = () => {
   const [deleteLoading, setDeleteLoading] = useState(null);
   const [showForm, setShowForm] = useState(false);
 
+  // Add state for total plants count
+  const [totalPlants, setTotalPlants] = useState(0);
+
   // Form state
   const [formData, setFormData] = useState({
     name: "",
@@ -193,12 +196,17 @@ const ManagePlants = () => {
           api.get("/sections"),
           api.get("/categories"),
           api.get("/varieties"),
-          api.get("/plants"),
+          api.get("/plants", { params: { limit: 100 } }), // Increased limit to get all plants
         ]);
+
       setSections(sectionsRes.data.data || []);
       setCategories(categoriesRes.data.data || []);
       setVarieties(varietiesRes.data.data || []);
       setPlants(plantsRes.data.data || []);
+
+      // Store total count from API response
+      setTotalPlants(plantsRes.data.total || plantsRes.data.data?.length || 0);
+
     } catch (error) {
       toast.error("Failed to load data");
       console.error(error);
@@ -544,10 +552,10 @@ const ManagePlants = () => {
               <button
                 onClick={() => setShowFilters(!showFilters)}
                 className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all ${showFilters
-                    ? 'bg-green-600 text-white'
-                    : activeFilterCount > 0
-                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-2 border-green-500'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                  ? 'bg-green-600 text-white'
+                  : activeFilterCount > 0
+                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-2 border-green-500'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
                   }`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -734,14 +742,14 @@ const ManagePlants = () => {
         )}
 
         <div className="container mx-auto px-4 py-6">
-          {/* Header with Add Button */}
+          {/* Header with Add Button - UPDATED to show total plants */}
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
                 Manage Plants
               </h1>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                {plants.reduce((total, plant) => total + (plant.images?.length || 1), 0)} total images
+                <span className="font-semibold text-green-600 dark:text-green-400">{totalPlants}</span> total plants • {plants.reduce((total, plant) => total + (plant.images?.length || 1), 0)} total images
               </p>
             </div>
             {!showForm && !editingId && (
@@ -1002,14 +1010,14 @@ const ManagePlants = () => {
             </div>
           )}
 
-          {/* Results Summary */}
+          {/* Results Summary - UPDATED to show total plants count */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <span className="text-2xl font-bold text-gray-900 dark:text-white">
                 {filteredPlants.length}
               </span>
               <span className="text-gray-600 dark:text-gray-400 text-sm">
-                {filteredPlants.length === 1 ? 'plant' : 'plants'} found
+                {filteredPlants.length === 1 ? 'plant' : 'plants'} shown • <span className="font-semibold text-green-600 dark:text-green-400">{totalPlants}</span> total
               </span>
             </div>
             <div className="text-sm text-gray-600 dark:text-gray-400">
