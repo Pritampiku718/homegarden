@@ -157,12 +157,12 @@ const PlantCard = ({ plant }) => {
           </span>
         </div>
 
-        {/* Action Buttons - With icons exactly like screenshot */}
+        {/* Action Buttons - With premium colors and icons */}
         <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
-          {/* View Button - with eye icon */}
+          {/* View Button - Premium Purple */}
           <Link
             to={plantDetailUrl}
-            className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-xs font-medium py-2 rounded-lg transition-all text-center flex items-center justify-center gap-1"
+            className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white text-xs font-medium py-2 rounded-lg transition-all duration-300 text-center flex items-center justify-center gap-1 shadow-md hover:shadow-lg transform hover:scale-105"
           >
             <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -171,12 +171,12 @@ const PlantCard = ({ plant }) => {
             <span>View</span>
           </Link>
 
-          {/* Cart Button - with cart icon */}
+          {/* Cart Button - Premium Green */}
           <button
             onClick={handleAddToCart}
             disabled={!inStock}
-            className={`text-xs font-medium py-2 rounded-lg transition-all flex items-center justify-center gap-1 ${inStock
-                ? 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200'
+            className={`text-xs font-medium py-2 rounded-lg transition-all duration-300 flex items-center justify-center gap-1 shadow-md hover:shadow-lg transform hover:scale-105 ${inStock
+                ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white'
                 : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
               }`}
           >
@@ -186,12 +186,12 @@ const PlantCard = ({ plant }) => {
             <span>Cart</span>
           </button>
 
-          {/* Buy Button - with lightning icon */}
+          {/* Buy Button - Premium Orange */}
           <button
             onClick={handleBuyNow}
             disabled={!inStock}
-            className={`text-xs font-medium py-2 rounded-lg transition-all flex items-center justify-center gap-1 ${inStock
-                ? 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200'
+            className={`text-xs font-medium py-2 rounded-lg transition-all duration-300 flex items-center justify-center gap-1 shadow-md hover:shadow-lg transform hover:scale-105 ${inStock
+                ? 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white'
                 : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
               }`}
           >
