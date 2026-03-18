@@ -5,25 +5,22 @@ import { useState } from 'react';
 const PlantCard = ({ plant }) => {
   const [imageError, setImageError] = useState(false);
 
-  // Default inStock to true if not specified
   const inStock = plant.inStock !== false;
 
   // Construct the correct hierarchical URL
   const sectionSlug = plant.section?.slug || '';
   const categorySlug = plant.category?.slug || '';
+  const varietySlug = plant.variety?.slug || '';
   const plantSlug = plant.slug || '';
 
   // Only create the link if we have all required slugs
   const plantDetailUrl = sectionSlug && categorySlug && plantSlug
     ? `/categories/${sectionSlug}/${categorySlug}/${plantSlug}`
-    : `/plants/${plantSlug}`; // Fallback to simple URL if hierarchical data missing
+    : `/plants/${plantSlug}`;
 
-  // Format price with Indian number format
   const formattedPrice = new Intl.NumberFormat('en-IN').format(plant.price || 0);
-
-  // Default image fallback
   const defaultImage = 'https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=400';
-  const imageUrl = imageError ? defaultImage : (plant.image || defaultImage);
+  const imageUrl = imageError ? defaultImage : (plant.images?.[0]?.url || plant.image || defaultImage);
 
   return (
     <div className="group relative bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-200 dark:border-gray-700">
@@ -38,10 +35,10 @@ const PlantCard = ({ plant }) => {
           onError={() => setImageError(true)}
         />
 
-        {/* Gradient Overlay - Improves text visibility on hover */}
+        {/* Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-        {/* Stock Badge - Mobile Optimized */}
+        {/* Stock Badge */}
         {!inStock && (
           <div className="absolute top-2 left-2 sm:top-3 sm:left-3">
             <span className="px-2 sm:px-3 py-1 sm:py-1.5 bg-red-500 text-white text-xs font-bold rounded-full shadow-lg">
@@ -50,19 +47,19 @@ const PlantCard = ({ plant }) => {
           </div>
         )}
 
-        {/* Price Badge - Mobile Optimized */}
+        {/* Price Badge */}
         <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
           <span className="px-2 sm:px-3 py-1 sm:py-1.5 bg-green-600 text-white font-bold rounded-full shadow-lg text-xs sm:text-sm">
             ₹{formattedPrice}
           </span>
         </div>
 
-        {/* Quick View Badge - Appears on hover */}
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          <span className="px-3 py-1.5 bg-white/90 dark:bg-gray-900/90 text-green-600 dark:text-green-400 text-xs font-semibold rounded-full backdrop-blur-sm">
-            Quick View
-          </span>
-        </div>
+        {/* Image Count Badge */}
+        {plant.images && plant.images.length > 1 && (
+          <div className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
+            📸 {plant.images.length}
+          </div>
+        )}
       </div>
 
       {/* Content */}
@@ -72,7 +69,7 @@ const PlantCard = ({ plant }) => {
           {plant.name || 'Unnamed Plant'}
         </h3>
 
-        {/* Category/Section Tags - Mobile Optimized */}
+        {/* Category/Section/Variety Tags - FIXED: Show all hierarchy */}
         <div className="flex flex-wrap gap-1 mb-2">
           {plant.section && (
             <span className="inline-block px-1.5 sm:px-2 py-0.5 sm:py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] sm:text-xs rounded-full">
@@ -84,25 +81,20 @@ const PlantCard = ({ plant }) => {
               {plant.category.name}
             </span>
           )}
+          {plant.variety && (
+            <span className="inline-block px-1.5 sm:px-2 py-0.5 sm:py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-[10px] sm:text-xs rounded-full">
+              {typeof plant.variety === 'object' ? plant.variety.name : plant.variety}
+            </span>
+          )}
         </div>
 
-        {/* Description - Hidden on mobile, shown on tablet and up */}
+        {/* Description - Only show on larger screens */}
         <p className="hidden sm:block text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-3 line-clamp-2 min-h-[32px] sm:min-h-[40px]">
           {plant.description || 'No description available'}
         </p>
 
-        {/* Mobile-only quick info */}
-        <div className="flex sm:hidden items-center justify-between mb-2">
-          <span className="text-xs text-gray-500 dark:text-gray-400">
-            {plant.description ? 'Available' : 'In stock'}
-          </span>
-          <span className="text-xs font-medium text-green-600 dark:text-green-400">
-            View →
-          </span>
-        </div>
-
-        {/* Actions - Fixed button layout */}
-        <div className="flex items-center gap-2">
+        {/* Actions */}
+        <div className="flex items-center gap-2 mt-2">
           <Link
             to={plantDetailUrl}
             className={`flex-1 text-center px-2 sm:px-3 py-2 sm:py-2.5 rounded-lg transition-all text-xs sm:text-sm font-medium ${inStock
@@ -128,14 +120,6 @@ const PlantCard = ({ plant }) => {
             </svg>
           </button>
         </div>
-
-        {/* Stock Status Indicator - Mobile only */}
-        {inStock && (
-          <div className="mt-2 flex sm:hidden items-center gap-1">
-            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-            <span className="text-xs text-green-600 dark:text-green-400">In stock</span>
-          </div>
-        )}
       </div>
     </div>
   );
