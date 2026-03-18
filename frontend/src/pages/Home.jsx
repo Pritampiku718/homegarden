@@ -9,6 +9,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 
 const Home = () => {
   const [sections, setSections] = useState([]);
+  const [sectionsWithCounts, setSectionsWithCounts] = useState([]);
   const [featuredPlants, setFeaturedPlants] = useState([]);
   const [stats, setStats] = useState({
     plants: 0,
@@ -26,20 +27,18 @@ const Home = () => {
     try {
       setLoading(true);
 
-      // Fetch all sections (but we'll only show 6 on homepage)
+      // Fetch all sections
       const sectionsRes = await api.get('/sections');
       const allSections = sectionsRes.data.data || [];
-      // Take only first 6 sections for homepage
-      setSections(allSections.slice(0, 6));
+      const firstSixSections = allSections.slice(0, 6);
+      setSections(firstSixSections);
 
       // Fetch plants for featured section
       const plantsRes = await api.get('/plants');
       const allPlants = plantsRes.data.data || [];
-
-      // Get first 6 plants as featured (you can add a 'featured' flag in your plant model later)
       setFeaturedPlants(allPlants.slice(0, 6));
 
-      // Fetch counts for stats - FIXED: changed from /subcategories to /varieties
+      // Fetch counts for stats
       const categoriesRes = await api.get('/categories');
       const varietiesRes = await api.get('/varieties');
 
@@ -49,6 +48,30 @@ const Home = () => {
         varieties: varietiesRes.data.data?.length || 0,
         customers: '1k+'
       });
+
+      // Fetch plant counts for each section
+      const sectionsWithPlantCounts = await Promise.all(
+        firstSixSections.map(async (section) => {
+          try {
+            // Get plants in this section
+            const plantsInSection = await api.get(`/plants?section=${section._id}&limit=1`);
+            const plantCount = plantsInSection.data.total || 0;
+
+            return {
+              ...section,
+              plantCount // Add plant count to section object
+            };
+          } catch (error) {
+            console.error(`Error fetching plant count for section ${section.name}:`, error);
+            return {
+              ...section,
+              plantCount: 0
+            };
+          }
+        })
+      );
+
+      setSectionsWithCounts(sectionsWithPlantCounts);
 
     } catch (error) {
       console.error('Error fetching home data:', error);
@@ -245,7 +268,7 @@ const Home = () => {
               viewport={{ once: true, margin: "-50px" }}
               className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 md:gap-6"
             >
-              {sections.map((section, index) => (
+              {sectionsWithCounts.map((section, index) => (
                 <motion.div
                   key={section._id}
                   variants={fadeInUp}
