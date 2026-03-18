@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom'; // Add this import
 import { Helmet } from 'react-helmet-async';
 import api from '../services/api';
 import PlantCard from '../components/PlantCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
+import { useCart } from '../contexts/CartContext'; // Add cart context
 
 const AllPlants = () => {
+  const navigate = useNavigate(); // Add navigate
+  const { addToCart } = useCart(); // Add cart function
   const [plants, setPlants] = useState([]);
   const [filteredPlants, setFilteredPlants] = useState([]);
   const [sections, setSections] = useState([]);
@@ -192,6 +196,14 @@ const AllPlants = () => {
     setPriceRange(prev => ({ ...prev, [name]: value }));
   };
 
+  // Handle WhatsApp order - redirect to checkout
+  const handleWhatsAppOrder = (plant) => {
+    // First add to cart
+    addToCart(plant);
+    // Then navigate to checkout
+    navigate('/checkout');
+  };
+
   return (
     <>
       <Helmet>
@@ -237,10 +249,10 @@ const AllPlants = () => {
               <button
                 onClick={() => setShowFilters(!showFilters)}
                 className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all ${showFilters
-                    ? 'bg-green-600 text-white'
-                    : activeFilterCount > 0
-                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-2 border-green-500'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                  ? 'bg-green-600 text-white'
+                  : activeFilterCount > 0
+                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-2 border-green-500'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
                   }`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -556,7 +568,38 @@ const AllPlants = () => {
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
               {filteredPlants.map(plant => (
-                <PlantCard key={plant._id} plant={plant} />
+                <div key={plant._id} className="relative group">
+                  <PlantCard plant={plant} />
+
+                  {/* Add to Cart Button - Appears on hover */}
+                  <button
+                    onClick={() => {
+                      addToCart(plant);
+                      // Optional: Show toast notification
+                    }}
+                    className="absolute top-2 left-2 bg-green-600 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-lg hover:bg-green-700 z-10"
+                    title="Add to Cart"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                  </button>
+
+                  {/* WhatsApp Button - Modified to go to checkout */}
+                  <button
+                    onClick={() => handleWhatsAppOrder(plant)}
+                    disabled={plant.inStock === false}
+                    className={`absolute top-2 right-2 p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-lg z-10 ${plant.inStock === false
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-green-500 hover:bg-green-600'
+                      }`}
+                    title={plant.inStock ? "Buy Now" : "Out of Stock"}
+                  >
+                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771z" />
+                    </svg>
+                  </button>
+                </div>
               ))}
             </div>
           )}

@@ -2,17 +2,40 @@ import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 
-// Load environment variables
-dotenv.config();
+// Get current directory
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// Import routes
+// Load environment variables FIRST with absolute path
+dotenv.config({ path: path.join(__dirname, '.env') });
+
+// Debug environment variables
+console.log("=".repeat(60));
+console.log("🔍 ENVIRONMENT VARIABLES CHECK");
+console.log("=".repeat(60));
+console.log("NODE_ENV:", process.env.NODE_ENV || "development");
+console.log("PORT:", process.env.PORT || "5000");
+console.log("MONGO_URI:", process.env.MONGO_URI ? "✅ Found" : "❌ Missing");
+console.log("RAZORPAY_KEY_ID:", process.env.RAZORPAY_KEY_ID ? "✅ Found" : "❌ Missing");
+console.log("RAZORPAY_KEY_SECRET:", process.env.RAZORPAY_KEY_SECRET ? "✅ Found (hidden)" : "❌ Missing");
+console.log("NURSERY_LAT:", process.env.NURSERY_LAT ? "✅ Found" : "❌ Missing");
+console.log("NURSERY_LNG:", process.env.NURSERY_LNG ? "✅ Found" : "❌ Missing");
+console.log("CLOUDINARY_CLOUD_NAME:", process.env.CLOUDINARY_CLOUD_NAME ? "✅ Found" : "❌ Missing");
+console.log("=".repeat(60));
+
+// Import routes (after env vars are loaded)
 import sectionRoutes from "./routes/sectionRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
 import subCategoryRoutes from "./routes/subCategoryRoutes.js";
 import plantRoutes from "./routes/plantRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
-import cloudinaryRoutes from "./routes/cloudinaryRoutes.js"; // Added cloudinary routes
+import cloudinaryRoutes from "./routes/cloudinaryRoutes.js";
+import deliveryRoutes from "./routes/deliveryRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
+import orderRoutes from "./routes/orderRoutes.js";
 
 // Initialize express
 const app = express();
@@ -69,7 +92,10 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/subcategories", subCategoryRoutes);
 app.use("/api/plants", plantRoutes);
 app.use("/api/users", userRoutes);
-app.use("/api/cloudinary", cloudinaryRoutes); // Added cloudinary routes
+app.use("/api/cloudinary", cloudinaryRoutes);
+app.use("/api/delivery", deliveryRoutes);
+app.use("/api/payment", paymentRoutes);
+app.use("/api/orders", orderRoutes);
 
 // Health check route
 app.get("/health", (req, res) => {
@@ -88,7 +114,10 @@ app.get("/health", (req, res) => {
       subcategories: "/api/subcategories",
       plants: "/api/plants",
       users: "/api/users",
-      cloudinary: "/api/cloudinary", // Added to endpoints
+      cloudinary: "/api/cloudinary",
+      delivery: "/api/delivery/:pincode",
+      payment: "/api/payment",
+      orders: "/api/orders",
     },
   });
 });
@@ -106,7 +135,10 @@ app.get("/", (req, res) => {
       subcategories: "/api/subcategories",
       plants: "/api/plants",
       users: "/api/users",
-      cloudinary: "/api/cloudinary", // Added to endpoints
+      cloudinary: "/api/cloudinary",
+      delivery: "/api/delivery/:pincode",
+      payment: "/api/payment",
+      orders: "/api/orders",
       health: "/health",
     },
     cors: {
@@ -269,7 +301,10 @@ const server = app.listen(PORT, () => {
     console.log("   • /api/subcategories");
     console.log("   • /api/plants");
     console.log("   • /api/users");
-    console.log("   • /api/cloudinary"); // Added to production log
+    console.log("   • /api/cloudinary");
+    console.log("   • /api/delivery/:pincode");
+    console.log("   • /api/payment");
+    console.log("   • /api/orders");
     console.log("   • /health");
   }
 });

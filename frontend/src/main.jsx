@@ -5,13 +5,14 @@ import { Toaster } from 'react-hot-toast';
 import App from './App';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
+import { CartProvider } from './contexts/CartContext'; // Import CartProvider
 import './styles/global.css';
 
 // Enhanced Error Boundary for Production
 class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
-    this.state = { 
+    this.state = {
       hasError: false,
       error: null,
       errorInfo: null
@@ -27,9 +28,9 @@ class ErrorBoundary extends Component {
     if (process.env.NODE_ENV === 'development') {
       console.error('❌ App Error:', error, errorInfo);
     }
-    
+
     this.setState({ errorInfo });
-    
+
     // Here you could send to error tracking service like Sentry
     // if (process.env.NODE_ENV === 'production') {
     //   Sentry.captureException(error);
@@ -51,7 +52,7 @@ class ErrorBoundary extends Component {
           <div className="max-w-md w-full">
             {/* Error Card */}
             <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-8 text-center transform animate-scale-in">
-              
+
               {/* Error Icon */}
               <div className="relative mx-auto w-24 h-24 mb-6">
                 <div className="absolute inset-0 bg-red-100 dark:bg-red-900/30 rounded-full animate-ping" />
@@ -66,7 +67,7 @@ class ErrorBoundary extends Component {
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">
                 Oops! Something Went Wrong
               </h1>
-              
+
               {/* Error Message */}
               <p className="text-gray-600 dark:text-gray-300 mb-6">
                 {this.state.error?.message || 'An unexpected error occurred. Our team has been notified.'}
@@ -110,8 +111,8 @@ class ErrorBoundary extends Component {
               {/* Support Link */}
               <p className="mt-6 text-sm text-gray-500 dark:text-gray-400">
                 Need help?{' '}
-                <a 
-                  href="/contact" 
+                <a
+                  href="/contact"
                   className="text-green-600 dark:text-green-400 hover:underline font-medium"
                 >
                   Contact Support
@@ -134,37 +135,39 @@ createRoot(document.getElementById('root')).render(
       <HelmetProvider>
         <ThemeProvider>
           <AuthProvider>
-            <App />
-            <Toaster 
-              position="top-right"
-              toastOptions={{
-                duration: 4000,
-                style: {
-                  background: '#333',
-                  color: '#fff',
-                  borderRadius: '12px',
-                  padding: '16px',
-                },
-                success: {
-                  icon: '✅',
+            <CartProvider> {/* Add CartProvider here */}
+              <App />
+              <Toaster
+                position="top-right"
+                toastOptions={{
+                  duration: 4000,
                   style: {
-                    background: '#10b981',
+                    background: '#333',
+                    color: '#fff',
+                    borderRadius: '12px',
+                    padding: '16px',
                   },
-                },
-                error: {
-                  icon: '❌',
-                  style: {
-                    background: '#ef4444',
+                  success: {
+                    icon: '✅',
+                    style: {
+                      background: '#10b981',
+                    },
                   },
-                },
-                loading: {
-                  icon: '⏳',
-                  style: {
-                    background: '#3b82f6',
+                  error: {
+                    icon: '❌',
+                    style: {
+                      background: '#ef4444',
+                    },
                   },
-                },
-              }}
-            />
+                  loading: {
+                    icon: '⏳',
+                    style: {
+                      background: '#3b82f6',
+                    },
+                  },
+                }}
+              />
+            </CartProvider> {/* Close CartProvider */}
           </AuthProvider>
         </ThemeProvider>
       </HelmetProvider>

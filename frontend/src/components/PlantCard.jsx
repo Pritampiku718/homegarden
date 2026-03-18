@@ -15,6 +15,9 @@ const PlantCard = ({ plant }) => {
     ? `/categories/${sectionSlug}/${categorySlug}/${plantSlug}`
     : `/plants/${plantSlug}`; // Fallback to simple URL if hierarchical data missing
 
+  // Format price with Indian number format
+  const formattedPrice = new Intl.NumberFormat('en-IN').format(plant.price || 0);
+
   return (
     <div className="group relative bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700">
       {/* Image Container */}
@@ -41,7 +44,7 @@ const PlantCard = ({ plant }) => {
         {/* Price Badge */}
         <div className="absolute top-3 right-3">
           <span className="px-3 py-1.5 bg-green-600 text-white font-bold rounded-full shadow-lg text-sm">
-            ₹{plant.price}
+            ₹{formattedPrice}
           </span>
         </div>
       </div>

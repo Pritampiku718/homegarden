@@ -1,12 +1,17 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/useAuth';
+import { useCart } from '../contexts/CartContext'; // Import cart context
 import ThemeToggle from './ThemeToggle';
 
 const Header = () => {
   const { user, logout, isAuthenticated } = useAuth();
+  const { cart } = useCart(); // Get cart data
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // Calculate total items in cart
+  const cartItemsCount = cart.reduce((total, item) => total + item.quantity, 0);
 
   const handleLogout = () => {
     logout();
@@ -33,6 +38,24 @@ const Header = () => {
             <Link to="/plants" className="hover:text-green-200 transition px-3 py-2 rounded-lg hover:bg-white/10">All Plants</Link>
             <Link to="/gallery" className="hover:text-green-200 transition px-3 py-2 rounded-lg hover:bg-white/10">Gallery</Link>
             <Link to="/contact" className="hover:text-green-200 transition px-3 py-2 rounded-lg hover:bg-white/10">Contact</Link>
+
+            {/* CART ICON - Only visible for non-admin users */}
+            {!isAuthenticated && (
+              <Link to="/cart" className="relative p-2 hover:bg-white/10 rounded-lg transition group">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                </svg>
+                {cartItemsCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
+                    {cartItemsCount}
+                  </span>
+                )}
+                {/* Tooltip */}
+                <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none">
+                  View Cart
+                </span>
+              </Link>
+            )}
 
             {/* AUTH SECTION */}
             {isAuthenticated ? (
@@ -73,6 +96,19 @@ const Header = () => {
 
           {/* Mobile Controls */}
           <div className="flex items-center space-x-3 md:hidden">
+            {/* Mobile Cart Icon - Only for non-admin users */}
+            {!isAuthenticated && (
+              <Link to="/cart" className="relative p-2 hover:bg-white/10 rounded-lg transition">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                </svg>
+                {cartItemsCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    {cartItemsCount}
+                  </span>
+                )}
+              </Link>
+            )}
             <ThemeToggle />
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -97,6 +133,22 @@ const Header = () => {
             <Link to="/plants" className="block py-2 px-3 hover:bg-white/10 rounded-lg" onClick={() => setIsMenuOpen(false)}>All Plants</Link>
             <Link to="/gallery" className="block py-2 px-3 hover:bg-white/10 rounded-lg" onClick={() => setIsMenuOpen(false)}>Gallery</Link>
             <Link to="/contact" className="block py-2 px-3 hover:bg-white/10 rounded-lg" onClick={() => setIsMenuOpen(false)}>Contact</Link>
+
+            {/* Mobile Cart Link - Only for non-admin users */}
+            {!isAuthenticated && (
+              <Link
+                to="/cart"
+                className="flex items-center justify-between py-2 px-3 hover:bg-white/10 rounded-lg"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <span>Cart</span>
+                {cartItemsCount > 0 && (
+                  <span className="bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    {cartItemsCount}
+                  </span>
+                )}
+              </Link>
+            )}
 
             {isAuthenticated ? (
               <>

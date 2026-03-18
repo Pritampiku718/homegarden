@@ -4,7 +4,7 @@ import { Helmet } from 'react-helmet-async';
 import Layout from './components/Layout';
 import LoadingSpinner from './components/LoadingSpinner';
 import AdminRoute from './components/AdminRoute';
-import ScrollToTop from './components/ScrollToTop'; // Import ScrollToTop component
+import ScrollToTop from './components/ScrollToTop';
 
 // Public Pages
 const Home = lazy(() => import('./pages/Home'));
@@ -16,6 +16,9 @@ const PlantDetails = lazy(() => import('./pages/PlantDetails'));
 const AllPlants = lazy(() => import('./pages/AllPlants'));
 const Gallery = lazy(() => import('./pages/Gallery'));
 const Contact = lazy(() => import('./pages/Contact'));
+const CartPage = lazy(() => import('./pages/CartPage')); // Added Cart page
+const Checkout = lazy(() => import('./pages/Checkout')); // Added Checkout page
+const OrderSuccess = lazy(() => import('./pages/OrderSuccess')); // Added Order Success page
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 // Admin Pages
@@ -93,6 +96,11 @@ function App() {
             <Route path="/categories/:sectionSlug/:categorySlug" element={<Variety />} />
             <Route path="/categories/:sectionSlug/:categorySlug/all" element={<PlantsPage />} />
             <Route path="/categories/:sectionSlug/:categorySlug/:plantSlug" element={<PlantDetails />} />
+
+            {/* Cart and Checkout Routes */}
+            <Route path="/cart" element={<CartPage />} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/order-success" element={<OrderSuccess />} />
 
             {/* Other Public Routes */}
             <Route path="/plants" element={<AllPlants />} />
