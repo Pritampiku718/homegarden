@@ -17,7 +17,7 @@ const Checkout = () => {
   });
   const [deliveryInfo, setDeliveryInfo] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [pincodeLoading, setPincodeLoading] = useState(false); // NEW: For pincode lookup
+  const [pincodeLoading, setPincodeLoading] = useState(false);
   const [error, setError] = useState('');
   const [paymentType, setPaymentType] = useState('full');
 
@@ -37,14 +37,14 @@ const Checkout = () => {
   useEffect(() => {
     if (formData.pincode.length === 6) {
       fetchDeliveryInfo();
-      fetchPincodeDetails(); // NEW: Auto-fill city when pincode is entered
+      fetchPincodeDetails();
     } else {
       setDeliveryInfo(null);
       setError('');
     }
   }, [formData.pincode, plantsTotal]);
 
-  // NEW: Fetch city from pincode using your backend API
+  // Fetch city from pincode using your backend API
   const fetchPincodeDetails = async () => {
     setPincodeLoading(true);
     try {
@@ -113,11 +113,15 @@ const Checkout = () => {
         setDeliveryInfo(null);
       } else {
         console.log('✅ Delivery available!');
-        console.log('📏 Distance:', res.data.distance, 'km');
         console.log('💰 Delivery Charge:', res.data.deliveryCharge);
         console.log('⏱️ Delivery Time:', res.data.deliveryTime);
 
-        setDeliveryInfo(res.data);
+        // Store delivery info without showing distance to user
+        setDeliveryInfo({
+          deliveryCharge: res.data.deliveryCharge,
+          deliveryTime: res.data.deliveryTime,
+          available: true
+        });
         setError(''); // Clear any previous errors
       }
     } catch (err) {
@@ -239,7 +243,7 @@ const Checkout = () => {
             paymentType: type,
             advancePaid,
             remainingAmount,
-            distance: deliveryInfo.distance,
+            distance: deliveryInfo.distance, // Still send distance to backend
             deliveryTime: deliveryInfo.deliveryTime,
           };
 
@@ -253,7 +257,7 @@ const Checkout = () => {
             console.log('✅ Payment verified:', verifyRes.data);
 
             if (verifyRes.data.success) {
-              // Send WhatsApp message
+              // Send WhatsApp message - still include distance for admin
               const itemsList = cart
                 .map(item => `${item.name} x${item.quantity} - ₹${item.price * item.quantity}`)
                 .join('%0A');
@@ -269,7 +273,6 @@ const Checkout = () => {
                 `*Order Summary:*%0A` +
                 `${itemsList}%0A%0A` +
                 `*Delivery Details:*%0A` +
-                `Distance: ${deliveryInfo.distance} km%0A` +
                 `Delivery Charge: ₹${deliveryCharge}%0A` +
                 `Delivery Time: ${deliveryInfo.deliveryTime}%0A%0A` +
                 `*Payment Details:*%0A` +
@@ -421,10 +424,6 @@ const Checkout = () => {
                   <p className="font-semibold text-green-700">Delivery Available!</p>
                 </div>
                 <div className="space-y-1 text-sm">
-                  <p className="flex justify-between">
-                    <span className="text-gray-600">Distance:</span>
-                    <span className="font-medium">{deliveryInfo.distance} km</span>
-                  </p>
                   <p className="flex justify-between">
                     <span className="text-gray-600">Delivery Charge:</span>
                     <span className="font-medium">₹{deliveryInfo.deliveryCharge}</span>
