@@ -41,7 +41,6 @@ export const uploadImage = async (file) => {
         size: `${(data.bytes / 1024).toFixed(2)} KB`,
       });
 
-      // Return both URL and public ID for deletion capability
       return {
         url: data.secure_url,
         publicId: data.public_id,
@@ -55,7 +54,7 @@ export const uploadImage = async (file) => {
   }
 };
 
-// Delete image from Cloudinary (requires backend endpoint)
+// Delete image from Cloudinary using backend endpoint
 export const deleteImage = async (publicId) => {
   if (!publicId) {
     console.warn("⚠️ No public ID provided for deletion");
@@ -65,11 +64,15 @@ export const deleteImage = async (publicId) => {
   console.log("🗑️ Deleting from Cloudinary...", { publicId });
 
   try {
-    // Using backend endpoint that has the API secret
-    const response = await fetch("/api/cloudinary/delete", {
+    // Using the full API URL from environment
+    const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+    const token = localStorage.getItem("token");
+    
+    const response = await fetch(`${API_URL}/cloudinary/delete`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
       },
       body: JSON.stringify({ publicId }),
     });
@@ -78,7 +81,7 @@ export const deleteImage = async (publicId) => {
 
     if (!response.ok) {
       console.error("❌ Cloudinary delete error:", data);
-      throw new Error(data.error?.message || "Delete failed");
+      throw new Error(data.message || "Delete failed");
     }
 
     console.log("✅ Delete successful:", data.message);
@@ -94,16 +97,9 @@ export const extractPublicIdFromUrl = (url) => {
   if (!url) return null;
 
   try {
-    // Cloudinary URL format examples:
-    // https://res.cloudinary.com/cloudname/image/upload/v1234567/public_id.extension
-    // https://res.cloudinary.com/cloudname/image/upload/public_id.extension
-
-    // Match patterns:
-    // 1. With version: /upload/v1234567/public_id.extension
-    // 2. Without version: /upload/public_id.extension
     const patterns = [
       /\/upload\/(?:v\d+\/)?(.+?)\.(jpg|jpeg|png|gif|webp|avif|bmp|svg)$/i,
-      /\/upload\/(?:v\d+\/)?(.+?)$/i, // Fallback for URLs without extension
+      /\/upload\/(?:v\d+\/)?(.+?)$/i,
     ];
 
     for (const pattern of patterns) {
@@ -123,15 +119,12 @@ export const extractPublicIdFromUrl = (url) => {
   }
 };
 
-// Alternative: Delete image using Cloudinary's unsigned method (if you enable it)
-// This is less secure but can be used if you don't have a backend
+// Unsigned delete (fallback if backend is not available)
 export const deleteImageUnsigned = async (publicId) => {
   if (!publicId) return false;
 
   console.log("🗑️ Deleting from Cloudinary (unsigned)...", { publicId });
 
-  // Note: This requires you to enable unsigned deletions in your Cloudinary settings
-  // Go to Settings > Security > Allow unsigned deletions
   try {
     const formData = new FormData();
     formData.append("public_id", publicId);
@@ -171,15 +164,8 @@ export const isCloudinaryUrl = (url) => {
 export const getOptimizedImageUrl = (url, options = {}) => {
   if (!url || !isCloudinaryUrl(url)) return url;
 
-  const {
-    width,
-    height,
-    crop = "fill",
-    quality = "auto",
-    format = "auto",
-  } = options;
+  const { width, height, crop = "fill", quality = "auto", format = "auto" } = options;
 
-  // Split the URL to insert transformations
   const parts = url.split("/upload/");
   if (parts.length !== 2) return url;
 
@@ -208,9 +194,7 @@ export const uploadMultipleImages = async (files) => {
     .filter((result) => result.status === "fulfilled")
     .map((result) => result.value);
 
-  const failed = results.filter(
-    (result) => result.status === "rejected",
-  ).length;
+  const failed = results.filter((result) => result.status === "rejected").length;
 
   console.log(`✅ Successfully uploaded: ${successful.length}`);
   if (failed > 0) console.warn(`⚠️ Failed uploads: ${failed}`);

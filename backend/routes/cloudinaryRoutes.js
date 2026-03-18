@@ -2,7 +2,23 @@ import express from 'express';
 import { v2 as cloudinary } from 'cloudinary';
 import { protect } from '../middleware/auth.js';
 
+// ✅ Add this configuration
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
 const router = express.Router();
+
+// Test route
+router.get('/test', (req, res) => {
+  res.json({ 
+    success: true, 
+    message: 'Cloudinary routes are working!',
+    time: new Date().toISOString()
+  });
+});
 
 // Delete image from Cloudinary
 router.post('/delete', protect, async (req, res) => {
