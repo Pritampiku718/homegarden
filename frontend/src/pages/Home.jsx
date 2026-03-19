@@ -282,7 +282,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Featured Plants Section - Maximum 6 Plants with View All */}
+      {/* Featured Plants Section - FIXED for desktop, perfect on mobile */}
       <section className="py-12 md:py-24 bg-white dark:bg-gray-800">
         <div className="container mx-auto px-4">
           <motion.div
@@ -326,7 +326,7 @@ const Home = () => {
               initial="initial"
               whileInView="animate"
               viewport={{ once: true, margin: "-50px" }}
-              className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4"
+              className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4"
             >
               {featuredPlants.map((plant, index) => (
                 <motion.div
