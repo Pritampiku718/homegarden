@@ -7,6 +7,32 @@ const CartPage = () => {
   const FREE_SHIPPING_THRESHOLD = 500;
   const amountNeededForFreeShipping = FREE_SHIPPING_THRESHOLD - total;
 
+  // Get the main image URL from plant data - matches PlantDetails structure
+  const getMainImage = (item) => {
+    // Check for images array first (like in PlantDetails)
+    if (item.images && item.images.length > 0) {
+      const firstImage = item.images[0];
+      // Handle both { url: '...' } object or direct string
+      return firstImage?.url || firstImage || '';
+    }
+    // Check for direct image property
+    if (item.image) {
+      return item.image;
+    }
+    // Check for mainImage property
+    if (item.mainImage) {
+      return item.mainImage;
+    }
+    // Return empty string if no image found
+    return '';
+  };
+
+  // Handle image error with fallback
+  const handleImageError = (e) => {
+    console.log('Image failed to load, using fallback');
+    e.target.src = 'https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=800';
+  };
+
   if (cart.length === 0) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
@@ -51,71 +77,112 @@ const CartPage = () => {
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Cart Items - Left Column */}
           <div className="lg:col-span-2 space-y-4">
-            {cart.map(item => (
-              <div
-                key={item.plantId}
-                className="group bg-white dark:bg-gray-800 rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-200 dark:border-gray-700"
-              >
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                  {/* Image */}
-                  <div className="relative w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0">
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="w-full h-full object-cover rounded-xl shadow-md group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
+            {cart.map(item => {
+              const imageUrl = getMainImage(item);
 
-                  {/* Content */}
-                  <div className="flex-1 w-full">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div>
-                        <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-1">
-                          {item.name}
-                        </h3>
-                        <p className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-600 dark:from-green-400 dark:to-emerald-400">
-                          ₹{item.price}
-                        </p>
+              return (
+                <div
+                  key={item.plantId}
+                  className="group bg-white dark:bg-gray-800 rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-200 dark:border-gray-700"
+                >
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    {/* Image Section */}
+                    <div className="relative w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0">
+                      <div className="w-full h-full rounded-xl overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 shadow-md">
+                        {imageUrl ? (
+                          <img
+                            src={imageUrl}
+                            alt={item.name || 'Plant'}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            onError={handleImageError}
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-600">
+                            <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                        )}
                       </div>
 
-                      <div className="flex items-center gap-3">
-                        {/* Quantity Controls */}
-                        <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-xl shadow-inner">
-                          <button
-                            onClick={() => updateQuantity(item.plantId, item.quantity - 1)}
-                            className="w-10 h-10 flex items-center justify-center text-gray-700 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 hover:bg-white dark:hover:bg-gray-600 rounded-l-xl transition-all font-bold text-lg"
-                            aria-label="Decrease quantity"
-                          >
-                            −
-                          </button>
-                          <span className="w-12 h-10 flex items-center justify-center bg-white dark:bg-gray-800 font-semibold text-gray-900 dark:text-white">
-                            {item.quantity}
+                      {/* Premium Badge */}
+                      {item.isPremium && (
+                        <div className="absolute -top-1 -right-1 z-10">
+                          <span className="px-1.5 py-0.5 bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-[8px] font-bold rounded-full shadow-lg">
+                            Premium
                           </span>
-                          <button
-                            onClick={() => updateQuantity(item.plantId, item.quantity + 1)}
-                            className="w-10 h-10 flex items-center justify-center text-gray-700 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 hover:bg-white dark:hover:bg-gray-600 rounded-r-xl transition-all font-bold text-lg"
-                            aria-label="Increase quantity"
-                          >
-                            +
-                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 w-full">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                          <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-1">
+                            {item.name || 'Unnamed Plant'}
+                          </h3>
+
+                          {/* Category tags */}
+                          <div className="flex flex-wrap gap-1 mb-2">
+                            {item.section?.name && (
+                              <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full border border-green-200 dark:border-green-800">
+                                {item.section.name}
+                              </span>
+                            )}
+                            {item.category?.name && (
+                              <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs rounded-full border border-blue-200 dark:border-blue-800">
+                                {item.category.name}
+                              </span>
+                            )}
+                          </div>
+
+                          <p className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-600 dark:from-green-400 dark:to-emerald-400">
+                            ₹{item.price || 0}
+                          </p>
                         </div>
 
-                        {/* Remove Button */}
-                        <button
-                          onClick={() => removeItem(item.plantId)}
-                          className="p-2 text-red-600 hover:text-white hover:bg-red-600 rounded-xl transition-all duration-300 group/remove"
-                          aria-label="Remove item"
-                        >
-                          <svg className="w-5 h-5 group-hover/remove:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
+                        <div className="flex items-center gap-3">
+                          {/* Quantity Controls */}
+                          <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-xl shadow-inner">
+                            <button
+                              onClick={() => updateQuantity(item.plantId, item.quantity - 1)}
+                              className="w-10 h-10 flex items-center justify-center text-gray-700 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 hover:bg-white dark:hover:bg-gray-600 rounded-l-xl transition-all font-bold text-lg"
+                              aria-label="Decrease quantity"
+                              disabled={item.quantity <= 1}
+                            >
+                              −
+                            </button>
+                            <span className="w-12 h-10 flex items-center justify-center bg-white dark:bg-gray-800 font-semibold text-gray-900 dark:text-white">
+                              {item.quantity}
+                            </span>
+                            <button
+                              onClick={() => updateQuantity(item.plantId, item.quantity + 1)}
+                              className="w-10 h-10 flex items-center justify-center text-gray-700 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 hover:bg-white dark:hover:bg-gray-600 rounded-r-xl transition-all font-bold text-lg"
+                              aria-label="Increase quantity"
+                            >
+                              +
+                            </button>
+                          </div>
+
+                          {/* Remove Button */}
+                          <button
+                            onClick={() => removeItem(item.plantId)}
+                            className="p-2 text-red-600 hover:text-white hover:bg-red-600 rounded-xl transition-all duration-300 group/remove"
+                            aria-label="Remove item"
+                          >
+                            <svg className="w-5 h-5 group-hover/remove:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Order Summary - Right Column */}

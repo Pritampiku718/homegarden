@@ -2,16 +2,22 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import api from '../services/api';
-import { sendWhatsAppOrder } from '../utils/whatsapp';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
+import { useCart } from '../contexts/CartContext';
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast'; // Add this import
 
 const PlantDetails = () => {
   const { sectionSlug, categorySlug, plantSlug } = useParams();
+  const navigate = useNavigate();
+  const { addToCart } = useCart();
   const [plant, setPlant] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedImage, setSelectedImage] = useState(0);
+  const [touchStart, setTouchStart] = useState(0);
+  const [touchEnd, setTouchEnd] = useState(0);
 
   useEffect(() => {
     if (plantSlug) {
@@ -27,7 +33,6 @@ const PlantDetails = () => {
       const { data } = await api.get(`/plants/slug/${plantSlug}`);
       console.log('Plant data:', data);
 
-      // Handle different response structures
       const plantData = data.data?.plant || data.data || data;
       setPlant(plantData);
 
@@ -39,11 +44,67 @@ const PlantDetails = () => {
     }
   };
 
+  const handleAddToCart = () => {
+    addToCart(plant);
+    // Add toast notification exactly like PlantCard
+    toast.success(`${plant?.name || 'Plant'} added to cart!`, {
+      duration: 3000,
+      position: 'top-center',
+      style: {
+        background: '#10b981',
+        color: '#fff',
+        padding: '16px',
+        borderRadius: '12px',
+        fontWeight: 'bold',
+        boxShadow: '0 10px 25px -5px rgba(16, 185, 129, 0.5)',
+      },
+      icon: '🛒',
+    });
+  };
+
+  const handleBuyNow = () => {
+    addToCart(plant);
+    navigate('/checkout');
+  };
+
+  // Touch handlers for mobile swipe
+  const handleTouchStart = (e) => {
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    const images = plant?.images || (plant?.image ? [{ url: plant.image }] : []);
+    if (images.length <= 1) return;
+
+    if (touchStart - touchEnd > 50) {
+      // Swipe left - next image
+      setSelectedImage((prev) => (prev < images.length - 1 ? prev + 1 : 0));
+    }
+
+    if (touchStart - touchEnd < -50) {
+      // Swipe right - previous image
+      setSelectedImage((prev) => (prev > 0 ? prev - 1 : images.length - 1));
+    }
+  };
+
+  const handlePreviousImage = () => {
+    const images = plant?.images || (plant?.image ? [{ url: plant.image }] : []);
+    setSelectedImage((prev) => (prev > 0 ? prev - 1 : images.length - 1));
+  };
+
+  const handleNextImage = () => {
+    const images = plant?.images || (plant?.image ? [{ url: plant.image }] : []);
+    setSelectedImage((prev) => (prev < images.length - 1 ? prev + 1 : 0));
+  };
+
   if (loading) return <LoadingSpinner fullPage />;
   if (error) return <ErrorMessage message={error} retry={fetchPlant} />;
   if (!plant) return <ErrorMessage message="Plant not found" />;
 
-  // Safely access nested properties
   const section = plant.section || {};
   const category = plant.category || {};
   const images = plant.images || (plant.image ? [{ url: plant.image }] : []);
@@ -56,73 +117,142 @@ const PlantDetails = () => {
         <meta name="description" content={plant.description?.substring(0, 160) || 'Plant details'} />
       </Helmet>
 
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
-        <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 md:py-8 max-w-7xl">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 transition-colors duration-300">
+        <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 md:py-8 max-w-6xl">
 
-          {/* Back Button - Mobile First */}
-          <div className="mb-4 sm:mb-6">
+          {/* Breadcrumb - Hidden on mobile */}
+          <div className="hidden sm:block mb-6">
+            <nav className="flex items-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 flex-wrap">
+              <Link to="/" className="hover:text-green-600 dark:hover:text-green-400 transition-colors">Home</Link>
+              <span className="mx-2">/</span>
+              <Link to="/plants" className="hover:text-green-600 dark:hover:text-green-400 transition-colors">Plants</Link>
+              {section?.name && (
+                <>
+                  <span className="mx-2">/</span>
+                  <Link to={`/categories/${section.slug}`} className="hover:text-green-600 dark:hover:text-green-400 transition-colors">
+                    {section.name}
+                  </Link>
+                </>
+              )}
+              {category?.name && (
+                <>
+                  <span className="mx-2">/</span>
+                  <Link to={`/categories/${section?.slug}/${category.slug}`} className="hover:text-green-600 dark:hover:text-green-400 transition-colors">
+                    {category.name}
+                  </Link>
+                </>
+              )}
+              <span className="mx-2">/</span>
+              <span className="text-gray-900 dark:text-white font-medium truncate max-w-[150px]">
+                {plant.name}
+              </span>
+            </nav>
+          </div>
+
+          {/* Back Button - Mobile Only */}
+          <div className="mb-3 sm:hidden">
             <Link
               to={category?.slug ? `/categories/${section?.slug}/${category.slug}` : '/categories'}
-              className="inline-flex items-center text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 text-sm sm:text-base font-medium transition-colors group"
+              className="inline-flex items-center text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 text-sm font-medium transition-colors group"
             >
-              <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 mr-1 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
-              Back to {category?.name || 'Category'}
+              Back
             </Link>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-4 sm:gap-6 md:gap-8">
+          <div className="grid lg:grid-cols-2 gap-4 lg:gap-6 xl:gap-8">
 
-            {/* Plant Images Section - Mobile Optimized */}
-            <div className="space-y-3 sm:space-y-4">
-              {/* Main Image */}
-              <div className="relative rounded-xl sm:rounded-2xl overflow-hidden shadow-md bg-gray-100 dark:bg-gray-800 aspect-square max-h-[500px]">
-                {mainImage ? (
-                  <img
-                    src={mainImage}
-                    alt={plant.name || 'Plant'}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.src = 'https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=400';
-                    }}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-green-400 to-green-600 dark:from-green-600 dark:to-green-800">
-                    <span className="text-6xl sm:text-7xl text-white opacity-50">🌿</span>
-                  </div>
-                )}
+            {/* Image Gallery Section - Mobile Slider, Desktop Grid */}
+            <div className="space-y-3 lg:space-y-4">
+              {/* Main Image with Navigation - Mobile Slider with Dots */}
+              <div
+                className="relative rounded-xl lg:rounded-2xl overflow-hidden shadow-md bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 aspect-square max-h-[400px] lg:max-h-[450px]"
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+              >
+                <img
+                  src={mainImage}
+                  alt={plant.name || 'Plant'}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.src = 'https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=800';
+                  }}
+                />
+
+                {/* Premium Badge - Smaller on mobile */}
+                <div className="absolute top-3 left-3 z-10">
+                  <span className="px-2 py-1 lg:px-3 lg:py-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-[10px] lg:text-xs font-bold rounded-full shadow-lg">
+                    Premium
+                  </span>
+                </div>
 
                 {/* Stock Badge */}
                 {plant.inStock === false && (
-                  <div className="absolute top-3 right-3 bg-red-500 text-white px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold shadow-lg">
-                    Out of Stock
+                  <div className="absolute top-3 right-3 z-10">
+                    <span className="px-2 py-1 lg:px-3 lg:py-1.5 bg-red-500/90 backdrop-blur-sm text-white text-[10px] lg:text-xs font-bold rounded-full shadow-lg border border-red-400/30">
+                      Out of Stock
+                    </span>
                   </div>
                 )}
 
-                {/* Image Counter */}
+                {/* Navigation Arrows - Desktop Only */}
                 {images.length > 1 && (
-                  <div className="absolute bottom-3 left-3 bg-black/60 text-white px-2 py-1 rounded-lg text-xs backdrop-blur-sm">
-                    {selectedImage + 1} / {images.length}
-                  </div>
+                  <>
+                    <button
+                      onClick={handlePreviousImage}
+                      className="hidden lg:flex absolute left-3 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-full items-center justify-center shadow-lg hover:bg-white dark:hover:bg-gray-800 transition-all hover:scale-110"
+                    >
+                      <svg className="w-4 h-4 text-gray-800 dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={handleNextImage}
+                      className="hidden lg:flex absolute right-3 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-full items-center justify-center shadow-lg hover:bg-white dark:hover:bg-gray-800 transition-all hover:scale-110"
+                    >
+                      <svg className="w-4 h-4 text-gray-800 dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </>
                 )}
               </div>
 
-              {/* Thumbnail Gallery - Only show if multiple images */}
+              {/* Mobile: 3 Dots Indicator */}
               {images.length > 1 && (
-                <div className="grid grid-cols-4 gap-2 sm:gap-3">
+                <div className="flex justify-center items-center gap-1.5 lg:hidden">
+                  {images.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setSelectedImage(index)}
+                      className={`w-2 h-2 rounded-full transition-all ${selectedImage === index
+                        ? 'w-4 bg-green-600'
+                        : 'bg-gray-300 dark:bg-gray-600'
+                        }`}
+                      aria-label={`Go to image ${index + 1}`}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Desktop Thumbnail Grid */}
+              {images.length > 1 && (
+                <div className="hidden lg:grid grid-cols-4 gap-2">
                   {images.map((img, index) => (
                     <button
                       key={index}
                       onClick={() => setSelectedImage(index)}
-                      className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all ${selectedImage === index
-                          ? 'border-green-500 scale-105 shadow-md'
-                          : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600'
+                      className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all hover:scale-105 ${selectedImage === index
+                        ? 'border-green-500 shadow-lg'
+                        : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600'
                         }`}
                     >
                       <img
                         src={img.url}
-                        alt={`${plant.name} - view ${index + 1}`}
+                        alt={`Thumbnail ${index + 1}`}
                         className="w-full h-full object-cover"
                       />
                     </button>
@@ -131,114 +261,118 @@ const PlantDetails = () => {
               )}
             </div>
 
-            {/* Plant Details - Mobile Optimized */}
-            <div className="space-y-4 sm:space-y-5 md:space-y-6">
+            {/* Plant Details - More Compact */}
+            <div className="space-y-4 lg:space-y-5">
 
-              {/* Title */}
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
-                {plant.name || 'Unnamed Plant'}
-              </h1>
+              {/* Title Section */}
+              <div>
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-2 leading-tight">
+                  {plant.name || 'Unnamed Plant'}
+                </h1>
 
-              {/* Category Tags */}
-              <div className="flex flex-wrap items-center gap-2">
-                {section?.name && (
-                  <Link
-                    to={`/categories/${section.slug}`}
-                    className="px-3 py-1.5 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 text-xs sm:text-sm rounded-full hover:bg-green-200 dark:hover:bg-green-900/60 transition shadow-sm"
-                  >
-                    {section.name}
-                  </Link>
-                )}
-                {category?.name && (
-                  <Link
-                    to={`/categories/${section?.slug}/${category.slug}`}
-                    className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-xs sm:text-sm rounded-full hover:bg-blue-200 dark:hover:bg-blue-900/60 transition shadow-sm"
-                  >
-                    {category.name}
-                  </Link>
-                )}
+                {/* Category Tags */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {section?.name && (
+                    <Link
+                      to={`/categories/${section.slug}`}
+                      className="px-2 py-1 lg:px-3 lg:py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full hover:shadow-md transition-all border border-green-200 dark:border-green-800"
+                    >
+                      {section.name}
+                    </Link>
+                  )}
+                  {category?.name && (
+                    <Link
+                      to={`/categories/${section?.slug}/${category.slug}`}
+                      className="px-2 py-1 lg:px-3 lg:py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs rounded-full hover:shadow-md transition-all border border-blue-200 dark:border-blue-800"
+                    >
+                      {category.name}
+                    </Link>
+                  )}
+                </div>
               </div>
 
-              {/* Price */}
-              <div className="flex items-baseline gap-3">
-                <span className="text-3xl sm:text-4xl font-bold text-green-600 dark:text-green-400">
-                  ₹{plant.price || 0}
-                </span>
+              {/* Price Section - More Compact */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Price</p>
+                  <span className="text-3xl lg:text-4xl font-bold text-green-600 dark:text-green-400">
+                    ₹{plant.price || 0}
+                  </span>
+                </div>
                 {plant.inStock !== false && (
-                  <span className="text-xs sm:text-sm text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/40 px-3 py-1 rounded-full">
+                  <span className="px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-medium border border-green-200 dark:border-green-800">
                     In Stock
                   </span>
                 )}
               </div>
 
-              {/* Description */}
+              {/* Description - Compact */}
               {plant.description && (
-                <div className="prose dark:prose-invert max-w-none">
-                  <p className="text-sm sm:text-base text-gray-700 dark:text-gray-300 leading-relaxed">
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700">
+                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed line-clamp-3 lg:line-clamp-none">
                     {plant.description}
                   </p>
                 </div>
               )}
 
-              {/* Quick Info Cards */}
-              <div className="grid grid-cols-2 gap-3 sm:gap-4 pt-2">
+              {/* Quick Info Cards - Compact */}
+              <div className="grid grid-cols-2 gap-2">
                 {plant.category?.name && (
-                  <div className="bg-white dark:bg-gray-800 p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+                  <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
                     <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Category</p>
-                    <p className="text-sm sm:text-base font-medium text-gray-900 dark:text-white">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">
                       {plant.category.name}
                     </p>
                   </div>
                 )}
                 {plant.section?.name && (
-                  <div className="bg-white dark:bg-gray-800 p-3 sm:p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+                  <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
                     <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Section</p>
-                    <p className="text-sm sm:text-base font-medium text-gray-900 dark:text-white">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">
                       {plant.section.name}
                     </p>
                   </div>
                 )}
               </div>
 
-              {/* Action Buttons - Stack on mobile, side by side on larger screens */}
-              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+              {/* Action Buttons - Compact */}
+              <div className="flex flex-col sm:flex-row gap-2 pt-2">
                 <button
-                  onClick={() => sendWhatsAppOrder(plant.name || 'Plant')}
+                  onClick={handleAddToCart}
                   disabled={plant.inStock === false}
-                  className={`flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-3 sm:py-4 rounded-xl transition-all text-sm sm:text-base font-semibold shadow-md hover:shadow-lg flex items-center justify-center gap-2 ${plant.inStock === false && 'opacity-50 cursor-not-allowed hover:bg-green-600'
+                  className={`group relative flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg transition-all font-medium shadow-md hover:shadow-lg flex items-center justify-center gap-2 text-sm ${plant.inStock === false && 'opacity-50 cursor-not-allowed'
                     }`}
                 >
-                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771z" />
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                   </svg>
-                  <span>Order on WhatsApp</span>
+                  Add to Cart
                 </button>
 
+                <button
+                  onClick={handleBuyNow}
+                  disabled={plant.inStock === false}
+                  className={`group relative flex-1 bg-orange-500 hover:bg-orange-600 text-white px-4 py-3 rounded-lg transition-all font-medium shadow-md hover:shadow-lg flex items-center justify-center gap-2 text-sm ${plant.inStock === false && 'opacity-50 cursor-not-allowed'
+                    }`}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Buy Now
+                </button>
+              </div>
+
+              {/* Back Link - Compact */}
+              <div className="pt-2 text-center">
                 <Link
                   to={category?.slug ? `/categories/${section?.slug}/${category.slug}` : '/categories'}
-                  className="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white px-4 py-3 sm:py-4 rounded-xl transition-all text-sm sm:text-base font-semibold text-center flex items-center justify-center gap-2"
+                  className="inline-flex items-center text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors group text-xs"
                 >
-                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3 h-3 mr-1 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                   </svg>
                   <span>Back to {category?.name || 'Category'}</span>
                 </Link>
-              </div>
-
-              {/* Share/Wishlist Buttons (Optional) */}
-              <div className="flex items-center gap-3 pt-2">
-                <button className="flex-1 flex items-center justify-center gap-2 text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors py-2 text-sm">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                  </svg>
-                  <span>Share</span>
-                </button>
-                <button className="flex-1 flex items-center justify-center gap-2 text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors py-2 text-sm">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                  </svg>
-                  <span>Save</span>
-                </button>
               </div>
             </div>
           </div>

@@ -30,6 +30,8 @@ export const CartProvider = ({ children }) => {
             : item
         );
       }
+
+      // Store the complete plant data to preserve all image formats
       return [
         ...prev,
         {
@@ -37,7 +39,16 @@ export const CartProvider = ({ children }) => {
           name: plant.name,
           price: plant.price,
           quantity: 1,
-          image: plant.images?.[0] || plant.image,
+          // Store all image formats exactly as they come from the API
+          image: plant.image, // Keep for backward compatibility
+          images: plant.images, // Store the full images array
+          mainImage: plant.mainImage, // Store mainImage if it exists
+          // Store section and category data for tags
+          section: plant.section,
+          category: plant.category,
+          isPremium: plant.isPremium,
+          inStock: plant.inStock,
+          description: plant.description,
         },
       ];
     });

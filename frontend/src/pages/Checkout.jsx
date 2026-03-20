@@ -20,12 +20,56 @@ const Checkout = () => {
   const [pincodeLoading, setPincodeLoading] = useState(false);
   const [error, setError] = useState('');
   const [paymentType, setPaymentType] = useState('full');
+  const [razorpayLoaded, setRazorpayLoaded] = useState(false);
 
   const plantsTotal = getCartTotal();
   const deliveryCharge = deliveryInfo?.deliveryCharge || 0;
   const totalAmount = plantsTotal + deliveryCharge;
   const advanceAmount = 100;
 
+  // Load Razorpay script dynamically
+  useEffect(() => {
+    const loadRazorpayScript = () => {
+      return new Promise((resolve) => {
+        if (window.Razorpay) {
+          setRazorpayLoaded(true);
+          resolve(true);
+          return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.onload = () => {
+          setRazorpayLoaded(true);
+          resolve(true);
+        };
+        script.onerror = () => {
+          setError('Failed to load payment gateway. Please refresh the page.');
+          resolve(false);
+        };
+        document.body.appendChild(script);
+      });
+    };
+
+    loadRazorpayScript();
+  }, []);
+
+  // Get the main image URL from plant data
+  const getMainImage = (item) => {
+    if (item.images && item.images.length > 0) {
+      const firstImage = item.images[0];
+      return firstImage?.url || firstImage || '';
+    }
+    if (item.image) {
+      return item.image;
+    }
+    return '';
+  };
+
+  // Handle image error with fallback
+  const handleImageError = (e) => {
+    e.target.src = 'https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=800';
+  };
 
   // Redirect if cart is empty
   useEffect(() => {
@@ -49,42 +93,15 @@ const Checkout = () => {
   const fetchPincodeDetails = async () => {
     setPincodeLoading(true);
     try {
-      console.log('📍 Fetching pincode details for:', formData.pincode);
-
-      // Call your backend API endpoint
       const res = await api.get(`/pincode/${formData.pincode}`);
-
-      console.log('📦 Pincode details response:', res.data);
-
-      // Auto-fill the city field with the district name
       if (res.data.city) {
         setFormData(prev => ({
           ...prev,
           city: res.data.city
         }));
-        console.log('✅ City auto-filled:', res.data.city);
       }
-
     } catch (err) {
-      console.error('❌ Pincode lookup error:', err);
-
-      // More detailed error logging
-      if (err.response) {
-        console.error('Error response:', err.response.data);
-        console.error('Error status:', err.response.status);
-
-        // If pincode not found, show a helpful message but don't block checkout
-        if (err.response.status === 404) {
-          console.log('ℹ️ Pincode not found in database. User can enter city manually.');
-        }
-      } else if (err.request) {
-        console.error('No response received:', err.request);
-      } else {
-        console.error('Error:', err.message);
-      }
-
-      // Don't show error to user, just log it
-      // City field remains editable for manual entry
+      console.error('Pincode lookup error:', err);
     } finally {
       setPincodeLoading(false);
     }
@@ -94,18 +111,9 @@ const Checkout = () => {
     setLoading(true);
     setError('');
     try {
-      console.log('📍 Fetching delivery for pincode:', formData.pincode);
-      console.log('💰 Plants total:', plantsTotal);
-      console.log('🔗 API URL:', `${api.defaults.baseURL}/delivery/${formData.pincode}?total=${plantsTotal}`);
-
       const res = await api.get(`/delivery/${formData.pincode}?total=${plantsTotal}`);
 
-      console.log('📦 Delivery API Response:', res.data);
-
       if (res.data.available === false) {
-        console.log('❌ Delivery not available. Message:', res.data.message);
-
-        // Show appropriate message based on the response
         if (res.data.message) {
           setError(res.data.message);
         } else {
@@ -113,34 +121,25 @@ const Checkout = () => {
         }
         setDeliveryInfo(null);
       } else {
-        console.log('✅ Delivery available!');
-        console.log('💰 Delivery Charge:', res.data.deliveryCharge);
-        console.log('⏱️ Delivery Time:', res.data.deliveryTime);
-
-        // Store delivery info without showing distance to user
         setDeliveryInfo({
           deliveryCharge: res.data.deliveryCharge,
           deliveryTime: res.data.deliveryTime,
-          available: true
+          available: true,
+          distance: res.data.distance
         });
-        setError(''); // Clear any previous errors
+        setError('');
       }
     } catch (err) {
-      console.error('❌ Delivery calculation error:', err);
-
-      // Handle different error types
+      console.error('Delivery calculation error:', err);
       if (err.response?.status === 404) {
         setError('Delivery service is temporarily unavailable. Please try again later.');
       } else if (err.response?.status === 400) {
         setError(err.response.data.error || 'Invalid pincode. Please enter a valid 6-digit pincode.');
-      } else if (err.code === 'ECONNABORTED') {
-        setError('Request timed out. Please check your internet connection and try again.');
       } else if (!err.response) {
         setError('Network error. Please check if the server is running.');
       } else {
         setError(err.response?.data?.error || 'Failed to calculate delivery. Please try again.');
       }
-
       setDeliveryInfo(null);
     } finally {
       setLoading(false);
@@ -191,7 +190,11 @@ const Checkout = () => {
   };
 
   const handlePayment = async (type) => {
-    // Validate form first
+    if (!window.Razorpay) {
+      setError('Payment gateway is still loading. Please wait a moment and try again.');
+      return;
+    }
+
     if (!validateForm()) {
       return;
     }
@@ -201,14 +204,10 @@ const Checkout = () => {
 
     try {
       setLoading(true);
-      console.log('💰 Creating payment order for amount:', amountToPay);
 
-      // Create Razorpay order
       const { data: order } = await api.post('/payment/create-order', {
         amount: amountToPay,
       });
-
-      console.log('✅ Payment order created:', order);
 
       const options = {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
@@ -218,9 +217,6 @@ const Checkout = () => {
         description: type === 'full' ? 'Full Payment' : 'Advance Payment',
         order_id: order.orderId,
         handler: async (response) => {
-          console.log('💰 Payment response:', response);
-
-          // Prepare order data for backend
           const advancePaid = type === 'full' ? totalAmount : advanceAmount;
           const remainingAmount = type === 'full' ? 0 : totalAmount - advanceAmount;
 
@@ -236,7 +232,7 @@ const Checkout = () => {
               name: item.name,
               price: item.price,
               quantity: item.quantity,
-              image: item.image,
+              image: getMainImage(item),
             })),
             plantsTotal,
             deliveryCharge,
@@ -244,64 +240,140 @@ const Checkout = () => {
             paymentType: type,
             advancePaid,
             remainingAmount,
-            distance: deliveryInfo.distance, // Still send distance to backend
-            deliveryTime: deliveryInfo.deliveryTime,
+            distance: deliveryInfo?.distance,
+            deliveryTime: deliveryInfo?.deliveryTime,
           };
 
           try {
-            // Verify payment
             const verifyRes = await api.post('/payment/verify', {
               ...response,
               orderData,
             });
 
-            console.log('✅ Payment verified:', verifyRes.data);
-
             if (verifyRes.data.success) {
-              // Send WhatsApp message - still include distance for admin
+              // Format items list with premium styling
               const itemsList = cart
-                .map(item => `${item.name} x${item.quantity} - ₹${item.price * item.quantity}`)
-                .join('%0A');
+                .map(item => {
+                  const imageUrl = getMainImage(item);
+                  // Extract just the filename from the URL for cleaner display
+                  const imageFileName = imageUrl ? imageUrl.split('/').pop() : '';
 
-              const message = `🌸 *New Order - HomeGarden* 🌸%0A%0A` +
-                `*Customer Details:*%0A` +
-                `Name: ${formData.name}%0A` +
-                `Phone: ${formData.phone}%0A%0A` +
-                `*Delivery Address:*%0A` +
-                `${formData.address}%0A` +
-                `Landmark: ${formData.landmark || '-'}%0A` +
-                `${formData.city} - ${formData.pincode}%0A%0A` +
-                `*Order Summary:*%0A` +
-                `${itemsList}%0A%0A` +
-                `*Delivery Details:*%0A` +
-                `Delivery Charge: ₹${deliveryCharge}%0A` +
-                `Delivery Time: ${deliveryInfo.deliveryTime}%0A%0A` +
-                `*Payment Details:*%0A` +
-                `Plants Total: ₹${plantsTotal}%0A` +
-                `Total Amount: ₹${totalAmount}%0A` +
-                `Payment Type: ${type === 'full' ? 'Full Payment' : 'Advance Payment'}%0A` +
-                `Advance Paid: ₹${advancePaid}%0A` +
-                `Remaining: ₹${remainingAmount} (Pay on Delivery)%0A%0A` +
-                `*Order ID:* ${verifyRes.data.order._id}`;
+                  return `┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ 🌱 *${item.name}*
+┃    📦 Qty: ${item.quantity} × ₹${item.price}
+┃    💰 Total: ₹${item.price * item.quantity}
+${imageUrl ? `┃    📸 *Plant Image:*\n┃    ${imageUrl}` : ''}
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛`;
+                })
+                .join('\n\n');
 
+              // Format full address
+              const fullAddress = [
+                formData.address,
+                formData.landmark,
+                `${formData.city} - ${formData.pincode}`
+              ].filter(Boolean).join(', ');
+
+              // Current date and time
+              const orderDate = new Date().toLocaleString('en-IN', {
+                dateStyle: 'full',
+                timeStyle: 'short'
+              });
+
+              // Premium WhatsApp message with elegant formatting
+              const message = `🌸 *🏡 HOMEGARDEN - PREMIUM ORDER* 🌸
+
+╔══════════════════════════════════╗
+║         📋 ORDER DETAILS         ║
+╚══════════════════════════════════╝
+
+🆔 *Order ID:* \`${verifyRes.data.order._id}\`
+📅 *Date & Time:* ${orderDate}
+💳 *Payment Type:* ${type === 'full' ? 'FULL PAYMENT' : 'ADVANCE PAYMENT'}
+
+╔══════════════════════════════════╗
+║         👤 CUSTOMER INFO         ║
+╚══════════════════════════════════╝
+
+👤 *Name:* ${formData.name}
+📞 *Phone:* \`${formData.phone}\`
+
+╔══════════════════════════════════╗
+║         📍 DELIVERY ADDRESS       ║
+╚══════════════════════════════════╝
+
+${fullAddress}
+
+╔══════════════════════════════════╗
+║         🌱 ORDER ITEMS            ║
+╚══════════════════════════════════╝
+
+${itemsList}
+
+╔══════════════════════════════════╗
+║         🚚 DELIVERY INFO          ║
+╚══════════════════════════════════╝
+
+┌──────────────────────────────────┐
+│  🚚 Charge: ₹${deliveryCharge}
+│  ⏱️ Time: ${deliveryInfo?.deliveryTime}
+│  📏 Distance: ${deliveryInfo?.distance || 'N/A'} km
+└──────────────────────────────────┘
+
+╔══════════════════════════════════╗
+║         💰 PAYMENT SUMMARY        ║
+╚══════════════════════════════════╝
+
+┌──────────────────────────────────┐
+│  💵 Plants Total: ₹${plantsTotal}
+│  ➕ Delivery: ₹${deliveryCharge}
+│  ════════════════════════════════
+│  💎 *TOTAL AMOUNT: ₹${totalAmount}*
+│  ════════════════════════════════
+│  ✅ Paid Now: ₹${advancePaid}
+│  ⏳ Due on Delivery: ₹${remainingAmount}
+└──────────────────────────────────┘
+
+╔══════════════════════════════════╗
+║         📱 CONTACT INFO           ║
+╚══════════════════════════════════╝
+
+📞 *Customer Support:* +91 ${import.meta.env.VITE_WHATSAPP_NUMBER}
+🌐 *Website:* www.homegarden.com
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✨ *Thank you for choosing HomeGarden!* ✨
+🌿 *Your plants will be delivered with love* 🌿
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+
+              // Send WhatsApp message to admin
               sendWhatsAppMessage(message);
 
-              clearCart();
-              navigate('/order-success', {
-                state: {
-                  orderId: verifyRes.data.order._id,
-                  total: totalAmount
-                }
-              });
+              // Wait 2 seconds before navigating to ensure WhatsApp opens
+              setTimeout(() => {
+                clearCart();
+                navigate('/order-success', {
+                  state: {
+                    orderId: verifyRes.data.order._id,
+                    total: totalAmount,
+                    customerName: formData.name,
+                    phone: formData.phone,
+                    address: fullAddress,
+                    paymentType: type,
+                    advancePaid: advancePaid,
+                    remainingAmount: remainingAmount
+                  }
+                });
+              }, 2000);
             }
           } catch (verifyError) {
-            console.error('❌ Payment verification failed:', verifyError);
+            console.error('Payment verification failed:', verifyError);
             setError('Payment verification failed. Please contact support.');
+            setLoading(false);
           }
         },
         modal: {
           ondismiss: () => {
-            console.log('Payment modal dismissed');
             setLoading(false);
           }
         },
@@ -317,13 +389,12 @@ const Checkout = () => {
       const razorpay = new window.Razorpay(options);
       razorpay.open();
     } catch (error) {
-      console.error('❌ Payment error:', error);
+      console.error('Payment error:', error);
       setError(error.response?.data?.error || 'Payment failed. Please try again.');
       setLoading(false);
     }
   };
 
-  // Don't render anything while checking cart
   if (cart.length === 0) {
     return null;
   }
@@ -353,6 +424,16 @@ const Checkout = () => {
           </div>
         )}
 
+        {/* Razorpay loading warning */}
+        {!razorpayLoaded && (
+          <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-l-4 border-blue-500 rounded-xl shadow-md">
+            <div className="flex items-center">
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent mr-3"></div>
+              <p className="font-medium text-blue-800 dark:text-blue-300">Loading payment gateway...</p>
+            </div>
+          </div>
+        )}
+
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Delivery Form */}
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl hover:shadow-2xl transition-shadow duration-300 border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -376,7 +457,7 @@ const Checkout = () => {
                 onChange={handleChange}
                 className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 transition-all"
               />
-              
+
               <input
                 type="tel"
                 name="phone"
@@ -386,7 +467,7 @@ const Checkout = () => {
                 maxLength="10"
                 className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 transition-all"
               />
-              
+
               <input
                 type="text"
                 name="address"
@@ -395,7 +476,7 @@ const Checkout = () => {
                 onChange={handleChange}
                 className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 transition-all"
               />
-              
+
               <input
                 type="text"
                 name="landmark"
@@ -404,7 +485,7 @@ const Checkout = () => {
                 onChange={handleChange}
                 className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 transition-all"
               />
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <input
                   type="text"
@@ -484,33 +565,47 @@ const Checkout = () => {
             <div className="p-6">
               {/* Cart Items with Images */}
               <div className="max-h-96 overflow-y-auto mb-4 space-y-4 pr-2 custom-scrollbar">
-                {cart.map(item => (
-                  <div key={item.plantId} className="flex items-center gap-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                    {/* Product Image */}
-                    <div className="w-16 h-16 flex-shrink-0">
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="w-full h-full object-cover rounded-lg shadow-md"
-                      />
-                    </div>
-                    
-                    {/* Product Details */}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-900 dark:text-white truncate">
-                        {item.name}
-                      </p>
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">
-                          Qty: {item.quantity}
-                        </span>
-                        <span className="font-bold text-green-600 dark:text-green-400">
-                          ₹{item.price * item.quantity}
-                        </span>
+                {cart.map(item => {
+                  const imageUrl = getMainImage(item);
+
+                  return (
+                    <div key={item.plantId} className="flex items-center gap-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                      {/* Product Image */}
+                      <div className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 shadow-md">
+                        {imageUrl ? (
+                          <img
+                            src={imageUrl}
+                            alt={item.name || 'Plant'}
+                            className="w-full h-full object-cover"
+                            onError={handleImageError}
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-600">
+                            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Product Details */}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 dark:text-white truncate">
+                          {item.name || 'Unnamed Plant'}
+                        </p>
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">
+                            Qty: {item.quantity}
+                          </span>
+                          <span className="font-bold text-green-600 dark:text-green-400">
+                            ₹{item.price * item.quantity}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Price Breakdown */}
@@ -519,7 +614,7 @@ const Checkout = () => {
                   <span>Plants Total</span>
                   <span className="font-semibold text-gray-900 dark:text-white">₹{plantsTotal}</span>
                 </div>
-                
+
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600 dark:text-gray-400">Delivery</span>
                   <span className={`font-semibold ${deliveryInfo ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`}>
@@ -557,7 +652,7 @@ const Checkout = () => {
               <div className="mt-6 space-y-3">
                 <button
                   onClick={() => handlePayment('full')}
-                  disabled={!deliveryInfo || loading}
+                  disabled={!deliveryInfo || loading || !razorpayLoaded}
                   className="group relative w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white py-4 rounded-xl font-semibold transition-all duration-300 transform hover:scale-[1.02] hover:shadow-xl active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 overflow-hidden"
                 >
                   <span className="relative z-10 flex items-center justify-center gap-2">
@@ -580,7 +675,7 @@ const Checkout = () => {
 
                 <button
                   onClick={() => handlePayment('advance')}
-                  disabled={!deliveryInfo || loading}
+                  disabled={!deliveryInfo || loading || !razorpayLoaded}
                   className="group relative w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-4 rounded-xl font-semibold transition-all duration-300 transform hover:scale-[1.02] hover:shadow-xl active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 overflow-hidden"
                 >
                   <span className="relative z-10 flex items-center justify-center gap-2">
