@@ -256,12 +256,13 @@ async function getRoadDistance(startLng, startLat, endLng, endLat) {
 }
 
 // Delivery pricing rules with your exact requirements and time-based delivery
+// Delivery pricing rules with your exact requirements and time-based delivery
 function calculateDeliveryDetails(distance, plantsTotal) {
-  console.log(
-    "📍 Calculating delivery for distance:",
-    distance.toFixed(1),
-    "km",
-  );
+  console.log("=".repeat(40));
+  console.log("🔍 CALCULATING DELIVERY DETAILS");
+  console.log("=".repeat(40));
+  console.log("📍 Input distance:", distance.toFixed(1), "km");
+  console.log("💰 Input plantsTotal:", plantsTotal);
 
   // Round distance to nearest integer for slab calculation
   const roundedDistance = Math.round(distance);
@@ -270,55 +271,81 @@ function calculateDeliveryDetails(distance, plantsTotal) {
   // Get current hour to determine if order is after 4 PM
   const currentHour = new Date().getHours();
   const isAfter4PM = currentHour >= 16; // 4 PM = 16 in 24-hour format
-  console.log("📍 Current hour:", currentHour, "Is after 4 PM:", isAfter4PM);
-
-  // Free delivery if total >= ₹500
-  if (plantsTotal >= 500) {
-    return {
-      distance: parseFloat(distance.toFixed(1)),
-      deliveryCharge: 0,
-      deliveryTime: "Free Delivery",
-      available: true,
-    };
-  }
+  console.log("🕐 Current hour:", currentHour, "Is after 4 PM:", isAfter4PM);
 
   // Not available beyond 150 km
   if (roundedDistance > 150) {
+    console.log("❌ Delivery not available - distance > 150km");
     return {
       available: false,
       message: "Delivery not available in your area (distance > 150km)",
     };
   }
 
-  // Exact pricing based on your required distance brackets
-  let deliveryCharge, deliveryTime;
+  // STEP 1: Calculate delivery time based on distance ONLY
+  let deliveryTime;
 
   if (roundedDistance <= 10) {
-    deliveryCharge = 49;
-    // 0-10 km: Same day, after 4 PM becomes next day
     deliveryTime = isAfter4PM ? "Next day" : "Same day";
+    console.log("⏱️ Distance <= 10km, Time set to:", deliveryTime);
   } else if (roundedDistance <= 30) {
-    deliveryCharge = 69;
-    // 11-30 km: 1 day, after 4 PM becomes next day
     deliveryTime = isAfter4PM ? "Next day" : "1 day";
+    console.log("⏱️ Distance 11-30km, Time set to:", deliveryTime);
   } else if (roundedDistance <= 50) {
-    deliveryCharge = 79;
     deliveryTime = "1-2 days";
+    console.log("⏱️ Distance 31-50km, Time set to:", deliveryTime);
   } else if (roundedDistance <= 70) {
-    deliveryCharge = 89;
     deliveryTime = "2 days";
+    console.log("⏱️ Distance 51-70km, Time set to:", deliveryTime);
   } else if (roundedDistance <= 90) {
-    deliveryCharge = 99;
     deliveryTime = "2-3 days";
+    console.log("⏱️ Distance 71-90km, Time set to:", deliveryTime);
   } else if (roundedDistance <= 120) {
-    deliveryCharge = 119;
     deliveryTime = "3 days";
+    console.log("⏱️ Distance 91-120km, Time set to:", deliveryTime);
   } else if (roundedDistance <= 150) {
-    deliveryCharge = 149;
     deliveryTime = "3-4 days";
+    console.log("⏱️ Distance 121-150km, Time set to:", deliveryTime);
+  } else {
+    deliveryTime = "4-5 days";
+    console.log("⏱️ Distance >150km, Time set to:", deliveryTime);
   }
 
-  console.log("📍 Delivery charge:", deliveryCharge, "Time:", deliveryTime);
+  // STEP 2: Calculate delivery charge based on total amount
+  let deliveryCharge;
+
+  if (plantsTotal >= 500) {
+    deliveryCharge = 0;
+    console.log("💰 plantsTotal >= 500, Delivery charge: FREE");
+  } else {
+    console.log("💰 plantsTotal < 500, Calculating paid delivery...");
+    if (roundedDistance <= 10) {
+      deliveryCharge = 49;
+    } else if (roundedDistance <= 30) {
+      deliveryCharge = 69;
+    } else if (roundedDistance <= 50) {
+      deliveryCharge = 79;
+    } else if (roundedDistance <= 70) {
+      deliveryCharge = 89;
+    } else if (roundedDistance <= 90) {
+      deliveryCharge = 99;
+    } else if (roundedDistance <= 120) {
+      deliveryCharge = 119;
+    } else if (roundedDistance <= 150) {
+      deliveryCharge = 149;
+    } else {
+      deliveryCharge = 199;
+    }
+    console.log("💰 Delivery charge set to:", deliveryCharge);
+  }
+
+  console.log("📦 FINAL RESULT:", {
+    distance: parseFloat(distance.toFixed(1)),
+    deliveryCharge,
+    deliveryTime,
+    available: true,
+  });
+  console.log("=".repeat(40));
 
   return {
     distance: parseFloat(distance.toFixed(1)),
@@ -327,7 +354,6 @@ function calculateDeliveryDetails(distance, plantsTotal) {
     available: true,
   };
 }
-
 // GET /api/delivery/:pincode?total=xxx
 export const getDeliveryInfo = async (req, res) => {
   try {

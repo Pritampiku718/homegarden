@@ -27,6 +27,16 @@ const Checkout = () => {
   const totalAmount = plantsTotal + deliveryCharge;
   const advanceAmount = 100;
 
+  // Format delivery time - helper function
+  const formatDeliveryTime = (time) => {
+    if (!time) return 'N/A';
+    // If it's "Free Delivery", show a standard delivery time estimate
+    if (time === "Free Delivery" || time === "Free") {
+      return "3-5 Business Days";
+    }
+    return time;
+  };
+
   // Load Razorpay script dynamically
   useEffect(() => {
     const loadRazorpayScript = () => {
@@ -280,6 +290,9 @@ ${imageUrl ? `┃    📸 *Plant Image:*\n┃    ${imageUrl}` : ''}
                 timeStyle: 'short'
               });
 
+              // Format delivery time for WhatsApp
+              const whatsappDeliveryTime = formatDeliveryTime(deliveryInfo?.deliveryTime);
+
               // Premium WhatsApp message with elegant formatting
               const message = `🌸 *🏡 HOMEGARDEN - PREMIUM ORDER* 🌸
 
@@ -315,8 +328,8 @@ ${itemsList}
 ╚══════════════════════════════════╝
 
 ┌──────────────────────────────────┐
-│  🚚 Charge: ₹${deliveryCharge}
-│  ⏱️ Time: ${deliveryInfo?.deliveryTime}
+│  🚚 Charge: ${deliveryCharge === 0 ? 'FREE' : `₹${deliveryCharge}`}
+│  ⏱️ Time: ${whatsappDeliveryTime}
 │  📏 Distance: ${deliveryInfo?.distance || 'N/A'} km
 └──────────────────────────────────┘
 
@@ -326,7 +339,7 @@ ${itemsList}
 
 ┌──────────────────────────────────┐
 │  💵 Plants Total: ₹${plantsTotal}
-│  ➕ Delivery: ₹${deliveryCharge}
+│  ➕ Delivery: ${deliveryCharge === 0 ? 'FREE' : `₹${deliveryCharge}`}
 │  ════════════════════════════════
 │  💎 *TOTAL AMOUNT: ₹${totalAmount}*
 │  ════════════════════════════════
@@ -531,11 +544,15 @@ ${itemsList}
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between items-center py-1 border-b border-green-200 dark:border-green-800">
                       <span className="text-gray-600 dark:text-gray-400">Delivery Charge:</span>
-                      <span className="font-bold text-green-700 dark:text-green-400">₹{deliveryInfo.deliveryCharge}</span>
+                      <span className="font-bold text-green-700 dark:text-green-400">
+                        {deliveryInfo.deliveryCharge === 0 ? 'FREE' : `₹${deliveryInfo.deliveryCharge}`}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center py-1">
                       <span className="text-gray-600 dark:text-gray-400">Delivery Time:</span>
-                      <span className="font-semibold text-gray-800 dark:text-gray-200">{deliveryInfo.deliveryTime}</span>
+                      <span className="font-semibold text-gray-800 dark:text-gray-200">
+                        {deliveryInfo.deliveryTime}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -618,7 +635,7 @@ ${itemsList}
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600 dark:text-gray-400">Delivery</span>
                   <span className={`font-semibold ${deliveryInfo ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`}>
-                    {deliveryInfo ? `₹${deliveryCharge}` : '—'}
+                    {deliveryInfo ? (deliveryCharge === 0 ? 'FREE' : `₹${deliveryCharge}`) : '—'}
                   </span>
                 </div>
 
